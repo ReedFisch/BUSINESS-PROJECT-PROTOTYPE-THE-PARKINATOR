@@ -1,14 +1,14 @@
 /* The Parkinator - Real World Edition */
-/* Integrates Google Maps API + LADOT Open Data (Live Viewport Filtering) */
+/* Strategy: Local DB + Simulated Availability + Price Labels + Navigation */
 
 let map;
 let allMarkers = [];
-const ZOOM_THRESHOLD = 16;
-const API_ENDPOINT = 'https://data.lacity.org/resource/s49e-q6j2.json';
+let parkingDatabase = [];
+const ZOOM_THRESHOLD = 15;
 
 window.initMap = async function () {
     const { Map } = await google.maps.importLibrary("maps");
-    const { AdvancedMarkerElement, PinElement } = await google.maps.importLibrary("marker");
+    const { AdvancedMarkerElement } = await google.maps.importLibrary("marker");
 
     const position = { lat: 34.0522, lng: -118.2437 };
 
@@ -17,67 +17,143 @@ window.initMap = async function () {
         center: position,
         mapId: "DEMO_MAP_ID",
         tilt: 0,
+        disableDefaultUI: true,
+        zoomControl: true,
     });
 
     const statsDiv = document.getElementById('stats');
+    statsDiv.textContent = "Loading local database...";
 
-    // Listener: IDLE (When map stops moving)
-    map.addListener('idle', () => {
-        const zoom = map.getZoom();
+    // LOAD DATABASE
+    try {
+        const response = await fetch('parking_database.json');
+        if (!response.ok) throw new Error("Local DB not found.");
+        parkingDatabase = await response.json();
 
-        if (zoom < ZOOM_THRESHOLD) {
-            clearMarkers();
-            statsDiv.innerHTML = `<span style="color:#D32F2F">Zoom in to see parking filters.</span><br>(Current Zoom: ${zoom} < ${ZOOM_THRESHOLD})`;
-        } else {
-            // Get visible bounds
-            const bounds = map.getBounds();
-            if (bounds) {
-                const ne = bounds.getNorthEast();
-                const sw = bounds.getSouthWest();
+        // PRE-PROCESS
+        parkingDatabase.forEach(meter => {
+            const rand = Math.random();
+            if (rand < 0.45) meter.status = 'taken';
+            else if (rand < 0.60) meter.status = 'soon';
+            else meter.status = 'free';
 
-                // SoQL within_box(field, nw_lat, nw_long, se_lat, se_long)
-                // NW Lat = NE Lat (top), NW Lng = SW Lng (left)
-                // SE Lat = SW Lat (bottom), SE Lng = NE Lng (right)
-
-                const nwLat = ne.lat();
-                const nwLng = sw.lng();
-                const seLat = sw.lat();
-                const seLng = ne.lng();
-
-                fetchParkingInBounds(nwLat, nwLng, seLat, seLng, AdvancedMarkerElement);
+            let price = 0;
+            if (meter.raterange) {
+                const match = meter.raterange.match(/\$?(\d+(\.\d{2})?)/);
+                if (match) price = parseFloat(match[1]);
             }
+            meter.priceVal = price;
+        });
+
+        console.log(`Database loaded: ${parkingDatabase.length} records.`);
+        statsDiv.textContent = `DB Ready: ${parkingDatabase.length} loaded.`;
+
+        updateMap(AdvancedMarkerElement);
+
+    } catch (err) {
+        console.error("DB Load Error:", err);
+        statsDiv.innerHTML = `<span style="color:red">Failed to load local DB.</span>`;
+        return;
+    }
+
+    map.addListener('idle', () => updateMap(AdvancedMarkerElement));
+};
+
+// Global reference to the cheapest meter for navigation
+let cheapestMeterInView = null;
+
+window.navigateToCheapest = () => {
+    if (cheapestMeterInView) {
+        const lat = parseFloat(cheapestMeterInView.latlng.latitude);
+        const lng = parseFloat(cheapestMeterInView.latlng.longitude);
+
+        map.panTo({ lat, lng });
+        map.setZoom(19); // Zoom right in
+
+        // Optional: Add a bounce animation or highlight? 
+        // For now, simple navigation is fine.
+    } else {
+        alert("No available parking in view!");
+    }
+};
+
+function updateMap(AdvancedMarkerElement) {
+    const statsDiv = document.getElementById('stats');
+    const zoom = map.getZoom();
+
+    if (zoom < ZOOM_THRESHOLD) {
+        clearMarkers();
+        statsDiv.innerHTML = `<div style="text-align:center;">Zoom In<br><small>to see prices</small></div>`;
+        return;
+    }
+
+    const bounds = map.getBounds();
+    if (!bounds) return;
+
+    const ne = bounds.getNorthEast();
+    const sw = bounds.getSouthWest();
+
+    const visibleMeters = parkingDatabase.filter(meter => {
+        if (!meter.latlng) return false;
+        const lat = parseFloat(meter.latlng.latitude);
+        const lng = parseFloat(meter.latlng.longitude);
+        return lat >= sw.lat() && lat <= ne.lat() && lng >= sw.lng() && lng <= ne.lng();
+    });
+
+    // Render
+    clearMarkers();
+    renderMarkers(visibleMeters, AdvancedMarkerElement);
+
+    // Stats & Navigation Logic
+    updateStats(visibleMeters, statsDiv);
+}
+
+function updateStats(meters, container) {
+    if (meters.length === 0) {
+        container.innerHTML = "No parking found.";
+        cheapestMeterInView = null;
+        return;
+    }
+
+    const available = meters.filter(m => m.status === 'free');
+
+    // Find Cheapest
+    let minPrice = Infinity;
+    cheapestMeterInView = null;
+
+    available.forEach(m => {
+        if (m.priceVal > 0 && m.priceVal < minPrice) {
+            minPrice = m.priceVal;
+            cheapestMeterInView = m;
         }
     });
 
-    // Initial Fetch (if starting at high zoom)
-    google.maps.event.trigger(map, 'idle');
-};
+    const cheapDisp = minPrice !== Infinity ? `$${minPrice.toFixed(2)}` : "--";
 
-async function fetchParkingInBounds(nwLat, nwLng, seLat, seLng, AdvancedMarkerElement) {
-    const statsDiv = document.getElementById('stats');
-    statsDiv.textContent = "Fetching live data...";
-
-    // Construct SoQL Query
-    // $where=within_box(lat_long, nwLat, nwLng, seLat, seLng)
-    // Note: Socrata `within_box` expects (lat_long, nw_lat, nw_long, se_lat, se_long)
-    const query = `?$where=within_box(lat_long, ${nwLat}, ${nwLng}, ${seLat}, ${seLng}) AND spaceid IS NOT NULL`;
-    const url = `${API_ENDPOINT}${query}`;
-
-    try {
-        const response = await fetch(url);
-        if (!response.ok) throw new Error(`LADOT API Error: ${response.status}`);
-
-        const data = await response.json();
-
-        clearMarkers(); // Clear old viewport markers before showing new ones
-        renderMarkers(data, AdvancedMarkerElement);
-
-        statsDiv.textContent = `Found ${data.length} meters in view.`;
-
-    } catch (error) {
-        console.error("Fetch Error:", error);
-        statsDiv.innerHTML = `<span style="color:red">Error loading data.</span><br>Ensure Local Server is running at http://localhost:8080`;
-    }
+    container.innerHTML = `
+        <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
+            <div>
+                <small style="color:#666;">VISIBLE</small>
+                <div style="font-weight:bold;">${meters.length}</div>
+            </div>
+            <div style="text-align:right;">
+                <small style="color:#666;">FREE</small>
+                <div style="font-weight:bold; color:#34C759;">${available.length}</div>
+            </div>
+        </div>
+        
+        <div style="background:#e8f0fe; padding:10px; border-radius:8px; text-align:center;">
+             <div style="font-size:10px; text-transform:uppercase; color:#1967d2; font-weight:bold;">Cheapest Nearby</div>
+             <div style="font-size:24px; font-weight:900; color:#1967d2; margin:5px 0;">${cheapDisp}</div>
+             <button onclick="navigateToCheapest()" style="
+                background: #1967d2; border:none; color:white; 
+                padding:6px 12px; border-radius:100px; font-size:12px; cursor:pointer; font-weight:bold;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+             ">
+                Navigate to Meter
+             </button>
+        </div>
+    `;
 }
 
 function clearMarkers() {
@@ -86,35 +162,76 @@ function clearMarkers() {
 }
 
 function renderMarkers(data, AdvancedMarkerElement) {
-    // Shared Icon Template
-    const starSvg = document.createElement('div');
-    starSvg.innerHTML = `
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" 
-                  fill="#FFAE00" stroke="#FFFFFF" stroke-width="1.5"/>
-        </svg>
-    `;
+    const MAX_RENDER = 1000;
+    const renderData = data.slice(0, MAX_RENDER);
 
-    data.forEach(meter => {
-        let lat, lng;
+    renderData.forEach(meter => {
+        const lat = parseFloat(meter.latlng.latitude);
+        const lng = parseFloat(meter.latlng.longitude);
 
-        if (meter.lat_long && meter.lat_long.latitude) {
-            lat = parseFloat(meter.lat_long.latitude);
-            lng = parseFloat(meter.lat_long.longitude);
-        } else if (meter.latitude && meter.longitude) {
-            lat = parseFloat(meter.latitude);
-            lng = parseFloat(meter.longitude);
+        // Color Logic
+        let color = "#34C759"; // Green
+        let zIndex = 3;
+
+        if (meter.status === 'taken') {
+            color = "#EA4335"; // Red
+            zIndex = 1;
+        } else if (meter.status === 'soon') {
+            color = "#FBBC04"; // Yellow
+            zIndex = 2;
         }
 
-        if (lat && lng) {
-            const icon = starSvg.cloneNode(true);
-            const marker = new AdvancedMarkerElement({
-                map: map,
-                position: { lat: lat, lng: lng },
-                title: `ID: ${meter.spaceid}`,
-                content: icon
-            });
-            allMarkers.push(marker);
+        // Price Text
+        // Only show price text if it's NOT taken (Taken spots don't matter)
+        // Or show on all? User said "above each meter".
+        let priceLabel = "";
+        if (meter.priceVal > 0) {
+            priceLabel = `<div style="
+                background: white; 
+                padding: 1px 4px; 
+                border-radius: 4px; 
+                font-size: 10px; 
+                font-weight: bold; 
+                color: #333; 
+                box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+                margin-bottom: 2px;
+                white-space: nowrap;
+                position: absolute;
+                bottom: 14px;
+                left: 50%;
+                transform: translateX(-50%);
+            ">$${meter.priceVal.toFixed(2)}</div>`;
+        }
+
+        const iconContainer = document.createElement('div');
+        iconContainer.style.position = 'relative';
+
+        // HTML Structure for Custom Marker
+        iconContainer.innerHTML = `
+            ${priceLabel}
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:block; margin:auto;">
+                <circle cx="8" cy="8" r="6" fill="${color}" stroke="white" stroke-width="2"/>
+            </svg>
+        `;
+
+        const marker = new AdvancedMarkerElement({
+            map: map,
+            position: { lat: lat, lng: lng },
+            title: `ID: ${meter.spaceid} - $${meter.priceVal}`,
+            content: iconContainer,
+            zIndex: zIndex
+        });
+        allMarkers.push(marker);
+    });
+}
+
+
+if (window.google && window.google.maps) {
+    initMap();
+} else {
+    window.addEventListener('load', () => {
+        if (window.google && window.google.maps) {
+            initMap();
         }
     });
 }
