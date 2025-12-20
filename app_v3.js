@@ -10,34 +10,32 @@ const appState = {
 };
 
 // Parking Spots Data (Fake Data)
-// Calibrated for standard parking spot size (~2.5m x 5m)
-// Spaced to avoid overlap
+// Calibrated for TIGHTER spacing and SMALLER size (v3.1)
 const parkingSpots = [
-    // Row 1 (North) - Spaced wider apart
-    // increasing latOffset moves North
-    { id: 1, latOffset: 0.00010, lngOffset: -0.00008, available: true },
-    { id: 2, latOffset: 0.00010, lngOffset: -0.00003, available: false },
-    { id: 3, latOffset: 0.00010, lngOffset: 0.00002, available: true },
-    { id: 4, latOffset: 0.00010, lngOffset: 0.00007, available: false },
+    // Row 1 (North)
+    // Decreased lng spacing from 0.00005 to 0.00003
+    { id: 1, latOffset: 0.00009, lngOffset: -0.000045, available: true },
+    { id: 2, latOffset: 0.00009, lngOffset: -0.000015, available: false },
+    { id: 3, latOffset: 0.00009, lngOffset: 0.000015, available: true },
+    { id: 4, latOffset: 0.00009, lngOffset: 0.000045, available: false },
 
-    // Row 2 (South, relative to Row 1) - clear gap between rows
-    // gap of 0.00008 lat is approx 8-9 meters (driveway)
-    { id: 5, latOffset: 0.00002, lngOffset: -0.00008, available: true },
-    { id: 6, latOffset: 0.00002, lngOffset: -0.00003, available: true }, // Targeted spot
-    { id: 7, latOffset: 0.00002, lngOffset: 0.00002, available: false },
-    { id: 8, latOffset: 0.00002, lngOffset: 0.00007, available: false },
+    // Row 2 (South)
+    // Decreased lat gap between rows (driving lane) from 0.00008 to 0.00006
+    { id: 5, latOffset: 0.00003, lngOffset: -0.000045, available: true },
+    { id: 6, latOffset: 0.00003, lngOffset: -0.000015, available: true }, // Targeted spot
+    { id: 7, latOffset: 0.00003, lngOffset: 0.000015, available: false },
+    { id: 8, latOffset: 0.00003, lngOffset: 0.000045, available: false },
 ];
 
 function initApp() {
     // Standard Google Maps Setup
-    // "Cartoon buildings" = vector map with 3D buildings enabled by default + tilt
     appState.map = new google.maps.Map(document.getElementById("map"), {
         center: { lat: DEMO_LAT, lng: DEMO_LNG },
-        zoom: 19, // Closer zoom by default to see spots clearly
+        zoom: 20, // Increased default zoom slightly
         mapTypeId: "roadmap",
-        disableDefaultUI: true, // Clean "App" look
+        disableDefaultUI: true,
         heading: 0,
-        tilt: 45, // Gives the 3D perspective
+        tilt: 45,
     });
 
     // Initial Marker
@@ -73,17 +71,10 @@ function enableParkingMode() {
 }
 
 function renderParkingSpots() {
-    // SIGNIFICANTLY REDUCED SIZE
-    // Standard Spot Size: ~2.5m x 5m
-    // 0.000025 lat is approx 2.75m
-    // 0.000025 lng is approx 2.05m
-
-    // Let's go slightly larger for visibility on mobile but still realistic
-    // Height (Lat) = 4.5m -> ~0.00004
-    // Width (Lng) = 2.4m -> ~0.000028
-
-    const heightLat = 0.000040;
-    const widthLng = 0.000028;
+    // v3.1 ADJUSTMENTS
+    // Reduced dimensions again for realism
+    const heightLat = 0.000035; // Previously 0.000040
+    const widthLng = 0.000022;  // Previously 0.000028
 
     parkingSpots.forEach(spot => {
         const spotLat = DEMO_LAT + spot.latOffset;
