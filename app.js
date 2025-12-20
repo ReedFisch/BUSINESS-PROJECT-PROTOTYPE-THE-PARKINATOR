@@ -303,7 +303,7 @@ function renderMarkers(data, AdvancedMarkerElement) {
         }
 
         if (isMyReservation) {
-            color = "#FBC02D";
+            color = "#1A73E8"; // Blue for Reserved Star
             zIndex = 10;
         }
 
