@@ -1,8 +1,10 @@
-// Map Configuration - Static Image Image
-// Switched to Google Maps Style (Square 1024x1024)
-const IMAGE_WIDTH = 1024;
+// Map Configuration - Mega Map (Two Sectors Stitched)
+// Sector A (West): loomisville_sector_west.png (1792x1024)
+// Sector B (East): loomisville_sector_east.png (1792x1024)
+// Total Width: 3584, Total Height: 1024
+
 const IMAGE_HEIGHT = 1024;
-const IMAGE_URL = 'loomisville_map.png';
+const IMAGE_WIDTH = 3584; // 1792 * 2
 
 // Initialize Leaflet Map
 const map = L.map('map', {
@@ -13,48 +15,62 @@ const map = L.map('map', {
     zoomControl: false
 });
 
-const bounds = [[0, 0], [IMAGE_HEIGHT, IMAGE_WIDTH]];
-const image = L.imageOverlay(IMAGE_URL, bounds).addTo(map);
+// Define Bounds for Sectors
+// West is 0 to 1792
+// East is 1792 to 3584
+const boundsWest = [[0, 0], [IMAGE_HEIGHT, 1792]];
+const boundsEast = [[0, 1792], [IMAGE_HEIGHT, 3584]];
 
-// Center the map initially
-map.fitBounds(bounds);
+// Add Overlays
+L.imageOverlay('loomisville_sector_west.png', boundsWest).addTo(map);
+L.imageOverlay('loomisville_sector_east.png', boundsEast).addTo(map);
 
-// LANDMARKS (Pixel Coordinates for Square Map)
+// Center the map initially on the "Seam" - Mullins Square
+map.setView([512, 1000], 0);
+map.fitBounds(boundsWest); // Start focused on downtown
+
+// LANDMARKS (Pixel Coordinates for Mega Map)
+// West Sector (0-1792)
+// East Sector (1792-3584)
+
 const LOCATIONS = {
-    liam: {
-        coords: [512, 350], // Center-Left (Green Park)
-        title: "Liam Square",
+    mullins: {
+        coords: [500, 896], // Center of West Sector (Mullins Square)
+        title: "Mullins Square", // RENAMED from Liam Square
         desc: "The heart of Loomisville."
     },
-    reed: {
-        coords: [512, 750], // Center-Right (Train Tracks)
-        title: "Reed's Rail Road",
-        desc: "Central Station."
-    },
     gabby: {
-        coords: [800, 200], // Top-Left (Commercial Block)
+        coords: [800, 400], // Top-Left of West Sector
         title: "Gabby's Tavern",
         desc: "Best juice in town."
     },
+    reed: {
+        coords: [300, 2500], // Bottom-Center of East Sector (1792 + 700ish)
+        title: "Reed's Rail Road",
+        desc: "Central Station."
+    },
     cgcc: {
-        coords: [200, 800], // Bottom-Right (Campus area)
+        coords: [800, 3200], // Top-Right of East Sector (1792 + 1400ish)
         title: "Columbia Greene CC",
         desc: "School of Architecture."
     }
 };
 
 // ADD MICRO-PARKING SPOTS
-// We will programmatically draw "Tiny" specific spots in the parking lot areas.
-// Zones defined by [Box Center Y, Box Center X] and dimensions.
+// Adjusted for the new layout.
+// West Sector Parking (Offsets 0-1792)
 const PARKING_ZONES = [
-    { center: [750, 300], rows: 4, cols: 8, vertical: false }, // Near Park - Horizontal Lots
-    { center: [850, 250], rows: 4, cols: 6, vertical: true },  // Near Tavern - Vertical Lots
-    { center: [300, 300], rows: 3, cols: 10, vertical: false }, // Left Side
-    { center: [350, 850], rows: 5, cols: 8, vertical: true }   // College Lot
+    { center: [850, 1100], rows: 4, cols: 8, vertical: true },   // West Lot 1
+    { center: [250, 1200], rows: 3, cols: 12, vertical: false }, // West Lot 2
+    { center: [600, 300], rows: 6, cols: 6, vertical: false },   // West Lot 3
+
+    // East Sector Parking (Offsets > 1792)
+    { center: [400, 2700], rows: 2, cols: 15, vertical: false }, // East Station Parking
+    { center: [700, 3300], rows: 5, cols: 8, vertical: true }    // East College Parking
 ];
 
-const SPOT_SIZE_PX = 8; // "Really Tiny" pixels
-const GAP_PX = 2;
+const SPOT_SIZE_PX = 10;
+const GAP_PX = 3;
 
 PARKING_ZONES.forEach(zone => {
     drawParkingGrid(zone);
@@ -64,11 +80,10 @@ function drawParkingGrid(zone) {
     const { center, rows, cols, vertical } = zone;
     const [centerY, centerX] = center;
 
-    // Calculate starting top-left to center the grid
     const gridWidth = cols * (SPOT_SIZE_PX + GAP_PX);
     const gridHeight = rows * (SPOT_SIZE_PX + GAP_PX);
 
-    const startY = centerY + (gridHeight / 2); // Leaflet Y goes up? No, ImageOverlay [0,0] is bottom-left usually.
+    const startY = centerY + (gridHeight / 2);
     const startX = centerX - (gridWidth / 2);
 
     for (let r = 0; r < rows; r++) {
@@ -76,8 +91,6 @@ function drawParkingGrid(zone) {
             const y = startY - (r * (SPOT_SIZE_PX + GAP_PX));
             const x = startX + (c * (SPOT_SIZE_PX + GAP_PX));
 
-            // Define corners for rectangle
-            // If vertical, swap width/length logic if needed, but here simple grid.
             const bounds = [
                 [y, x],
                 [y - SPOT_SIZE_PX, x + SPOT_SIZE_PX]
@@ -86,7 +99,7 @@ function drawParkingGrid(zone) {
             L.rectangle(bounds, {
                 color: "white",
                 weight: 0.5,
-                fillColor: "#34C759", // Tiny Green "Available" Spots
+                fillColor: "#34C759", // Available
                 fillOpacity: 0.6
             }).addTo(map);
         }
@@ -140,7 +153,7 @@ Object.keys(LOCATIONS).forEach(key => {
 window.panToPlace = (key) => {
     const loc = LOCATIONS[key];
     if (loc) {
-        map.flyTo(loc.coords, 1); // Zoom level 1
+        map.flyTo(loc.coords, 0.5); // Zoom slightly out to show context
     }
 };
 
