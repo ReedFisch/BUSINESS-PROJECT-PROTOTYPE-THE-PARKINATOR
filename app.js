@@ -1,5 +1,5 @@
 /* The Parkinator - Real World Edition */
-/* Strategy: Local DB + Pricing + Multi-Reservations + Smart Time Logic */
+/* Strategy: Local DB + Pricing + Multi-Reservations + WorldTimeAPI */
 
 let map;
 let allMarkers = [];
@@ -8,7 +8,7 @@ const ZOOM_THRESHOLD = 15;
 let activeInfoWindow = null;
 
 // Track Multiple User Reservations
-let myReservations = []; // Array of { spaceid, type, lat, lng, time }
+let myReservations = [];
 
 window.initMap = async function () {
     const { Map, InfoWindow } = await google.maps.importLibrary("maps");
@@ -84,19 +84,30 @@ window.navigateToReservation = (index) => {
     }
 };
 
-// Helper: Get Time + Hours
-function getTimePlusHours(hours) {
-    const d = new Date();
+// Trusted Time API
+async function getTrustedTime() {
+    try {
+        const response = await fetch("http://worldtimeapi.org/api/timezone/America/Los_Angeles");
+        const data = await response.json();
+        return new Date(data.datetime);
+    } catch (e) {
+        console.warn("Time API failed, falling back to local time.", e);
+        return new Date();
+    }
+}
+
+// Helper: Get Time Object + Hours
+async function getTimePlusHoursStr(hours) {
+    const d = await getTrustedTime();
     d.setHours(d.getHours() + hours);
     return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
 // Reservation Logic
-window.handleReserve = (spaceId, type) => {
+window.handleReserve = async (spaceId, type) => {
     const meter = parkingDatabase.find(m => m.spaceid === spaceId);
     if (!meter) return;
 
-    // Check if already reserved
     if (myReservations.some(r => r.spaceid === spaceId)) {
         alert("You have already reserved this space!");
         return;
@@ -109,15 +120,17 @@ window.handleReserve = (spaceId, type) => {
         meter.status = 'reserved';
     } else if (type === 'later') {
 
-        // TIME CONSTRAINT LOGIC
-        // If 'soon' (Yellow), minimum time is +2 hours
-        let defaultTime = "6:00 PM";
+        // Use Trusted API Time
+        let defaultTime = "6:00 PM"; // fallback
         let promptMsg = "Enter reservation time:";
 
         if (meter.status === 'soon') {
-            const minTime = getTimePlusHours(2);
-            defaultTime = minTime;
-            promptMsg = `Note: This spot is busy.\nEarliest Reservation: ${minTime}\n\nEnter time:`;
+            const minTimeStr = await getTimePlusHoursStr(2);
+            defaultTime = minTimeStr;
+            promptMsg = `Note: Spot uses Trusted API Time.\nEarliest Reservation: ${minTimeStr}\n\nEnter time:`;
+        } else {
+            const currentTimeStr = await getTimePlusHoursStr(0);
+            defaultTime = currentTimeStr;
         }
 
         const time = prompt(promptMsg, defaultTime);
@@ -130,7 +143,6 @@ window.handleReserve = (spaceId, type) => {
         }
     }
 
-    // Add to Array
     myReservations.push({
         spaceid: spaceId,
         type: type,
@@ -141,7 +153,6 @@ window.handleReserve = (spaceId, type) => {
 
     activeInfoWindow.close();
 
-    // Refresh
     google.maps.importLibrary("marker").then(({ AdvancedMarkerElement }) => {
         updateMap(AdvancedMarkerElement);
     });
@@ -185,7 +196,6 @@ function updateStats(meters, container) {
 
     const available = meters.filter(m => m.status === 'free');
 
-    // Find Cheapest
     let minPrice = Infinity;
     cheapestMeterInView = null;
     available.forEach(m => {
@@ -196,8 +206,7 @@ function updateStats(meters, container) {
     });
     const cheapDisp = minPrice !== Infinity ? `$${minPrice.toFixed(2)}` : "--";
 
-    // Dynamic Content
-    // If reservations exist, list them.
+    // Dynamic Dropdown for Reservations
     let reservationHtml = '';
 
     if (myReservations.length > 0) {
@@ -218,14 +227,21 @@ function updateStats(meters, container) {
             `;
         }).join('');
 
+        // Use DETAILS element for Dropdown
         reservationHtml = `
-            <div style="background:#FFF8E1; padding:8px; border-radius:8px; border: 1px solid #FFD54F; margin-bottom:8px;">
-                 <div style="font-size:10px; text-transform:uppercase; color:#F57F17; font-weight:bold; margin-bottom:4px;">
-                    My Reservations (${myReservations.length})
-                 </div>
-                 <div style="max-height:80px; overflow-y:auto;">
-                    ${listHtml}
-                 </div>
+            <div style="margin-bottom:8px;">
+                 <details open style="
+                    background:#FFF8E1; border: 1px solid #FFD54F; border-radius:8px; overflow:hidden;
+                 ">
+                    <summary style="
+                        background:#FFECB3; padding:8px; font-size:11px; text-transform:uppercase; color:#F57F17; font-weight:bold; cursor:pointer; outline:none;
+                    ">
+                        My Reservations (${myReservations.length}) ▼
+                    </summary>
+                    <div style="padding:4px; max-height:150px; overflow-y:auto;">
+                        ${listHtml}
+                    </div>
+                 </details>
             </div>
             
              <a href="#" onclick="navigateToCheapest()" style="color:#1967d2; font-size:11px; display:block; text-align:center; margin-top:4px;">
@@ -233,7 +249,6 @@ function updateStats(meters, container) {
              </a>
         `;
     } else {
-        // Default View
         reservationHtml = `
             <div style="background:#e8f0fe; padding:10px; border-radius:8px; text-align:center;">
                  <div style="font-size:10px; text-transform:uppercase; color:#1967d2;">Cheapest Nearby</div>
@@ -277,7 +292,6 @@ function renderMarkers(data, AdvancedMarkerElement) {
         let color = "#34C759";
         let zIndex = 3;
 
-        // CHECK RESERVATION ARRAY
         let isMyReservation = myReservations.some(r => r.spaceid === meter.spaceid);
 
         if (meter.status === 'taken') {
@@ -289,7 +303,7 @@ function renderMarkers(data, AdvancedMarkerElement) {
         }
 
         if (isMyReservation) {
-            color = "#FBC02D"; // Gold
+            color = "#FBC02D";
             zIndex = 10;
         }
 
@@ -326,7 +340,6 @@ function renderMarkers(data, AdvancedMarkerElement) {
             zIndex: zIndex
         });
 
-        // Click Logic
         if ((meter.status === 'free' || meter.status === 'soon') && !isMyReservation) {
             iconContainer.style.cursor = "pointer";
 
@@ -357,7 +370,7 @@ function renderMarkers(data, AdvancedMarkerElement) {
                                 background:#f1f3f4; color:#3c4043; border:1px solid #dadce0; padding:6px 12px; border-radius:4px; cursor:pointer; font-weight:bold; flex:1;
                             ">Later</button>
                         </div>
-                        ${isSoon ? `<div style='font-size:10px; color:#555; margin-top:8px;'>*Reserving 'Soon' spots requires 2hr wait.</div>` : ''}
+                        ${isSoon ? `<div style='font-size:10px; color:#555; margin-top:8px;'>*Verifying time via API...</div>` : ''}
                     </div>
                 `;
                 activeInfoWindow.setContent(contentStr);
@@ -371,6 +384,7 @@ function renderMarkers(data, AdvancedMarkerElement) {
         allMarkers.push(marker);
     });
 }
+
 
 if (window.google && window.google.maps) {
     initMap();
