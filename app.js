@@ -1,17 +1,16 @@
 // Map Configuration - Static Image Image
-// The generated image is 1024x1024 usually (DALL-E standard)
-const IMAGE_WIDTH = 1024;
+// New Widescreen High-Res Map
+const IMAGE_WIDTH = 1792;
 const IMAGE_HEIGHT = 1024;
 const IMAGE_URL = 'loomisville_map.png';
 
 // Initialize Leaflet Map
-// CRS.Simple is for flat images (pixels, not lat/long)
 const map = L.map('map', {
     crs: L.CRS.Simple,
     minZoom: -1,
     maxZoom: 2,
     zoomSnap: 0.5,
-    zoomControl: false // We'll add it in a better position if needed
+    zoomControl: false
 });
 
 const bounds = [[0, 0], [IMAGE_HEIGHT, IMAGE_WIDTH]];
@@ -21,30 +20,29 @@ const image = L.imageOverlay(IMAGE_URL, bounds).addTo(map);
 map.fitBounds(bounds);
 
 // LANDMARKS (Pixel Coordinates)
-// Based on the new Google Maps style image:
-// - Central Square Park (Green rectangle) is roughly center-left: [512, 300]
-// - Train Station (Gray tracks) is center-right: [512, 700]
-// - College Campus (Green buildings) is bottom-right: [200, 800]
-// - Tavern/Commercial area is top-left: [800, 200]
+// Estimating positions on the 1792x1024 grid
+// [y, x] format (Leaflet Simple CRS usually treats [0,0] as bottom-left, but imageOverlay bounds might flip it depending on config.
+// Standard Leaflet ImageOverlay: [0,0] is top-left in pixel coords if we map it that way, but let's stick to the bounds [0,0] to [H,W].
+// So [0,0] is bottom-left. [1024, 1792] is top-right.
 
 const LOCATIONS = {
     liam: {
-        coords: [512, 350], // Center-Left (Green Park)
+        coords: [512, 896], // Center (The Park)
         title: "Liam Square",
         desc: "The heart of Loomisville."
     },
     reed: {
-        coords: [512, 750], // Center-Right (Train Tracks)
+        coords: [300, 1400], // Bottom-Right-ish (Train Station area)
         title: "Reed's Rail Road",
         desc: "Central Station."
     },
     gabby: {
-        coords: [800, 200], // Top-Left (Commercial Block)
+        coords: [400, 400], // Bottom-Left (Tavern/Town)
         title: "Gabby's Tavern",
         desc: "Best juice in town."
     },
     cgcc: {
-        coords: [200, 800], // Bottom-Right (Campus area)
+        coords: [800, 1500], // Top-Right (College)
         title: "Columbia Greene CC",
         desc: "School of Architecture."
     }
