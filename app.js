@@ -10,19 +10,22 @@ const appState = {
 };
 
 // Parking Spots Data (Fake Data)
-// Calibrated for standard parking spot size (~9x18ft)
+// Calibrated for standard parking spot size (~2.5m x 5m)
 // Spaced to avoid overlap
 const parkingSpots = [
     // Row 1 (North) - Spaced wider apart
-    { id: 1, latOffset: 0.00010, lngOffset: -0.00006, available: true },
-    { id: 2, latOffset: 0.00010, lngOffset: -0.00002, available: false },
+    // increasing latOffset moves North
+    { id: 1, latOffset: 0.00010, lngOffset: -0.00008, available: true },
+    { id: 2, latOffset: 0.00010, lngOffset: -0.00003, available: false },
     { id: 3, latOffset: 0.00010, lngOffset: 0.00002, available: true },
-    { id: 4, latOffset: 0.00010, lngOffset: 0.00006, available: false },
+    { id: 4, latOffset: 0.00010, lngOffset: 0.00007, available: false },
+
     // Row 2 (South, relative to Row 1) - clear gap between rows
-    { id: 5, latOffset: 0.00004, lngOffset: -0.00006, available: true },
-    { id: 6, latOffset: 0.00004, lngOffset: -0.00002, available: true }, // Targeted spot
-    { id: 7, latOffset: 0.00004, lngOffset: 0.00002, available: false },
-    { id: 8, latOffset: 0.00004, lngOffset: 0.00006, available: false },
+    // gap of 0.00008 lat is approx 8-9 meters (driveway)
+    { id: 5, latOffset: 0.00002, lngOffset: -0.00008, available: true },
+    { id: 6, latOffset: 0.00002, lngOffset: -0.00003, available: true }, // Targeted spot
+    { id: 7, latOffset: 0.00002, lngOffset: 0.00002, available: false },
+    { id: 8, latOffset: 0.00002, lngOffset: 0.00007, available: false },
 ];
 
 function initApp() {
@@ -72,8 +75,15 @@ function enableParkingMode() {
 function renderParkingSpots() {
     // SIGNIFICANTLY REDUCED SIZE
     // Standard Spot Size: ~2.5m x 5m
-    const heightLat = 0.000025;
-    const widthLng = 0.000025;
+    // 0.000025 lat is approx 2.75m
+    // 0.000025 lng is approx 2.05m
+
+    // Let's go slightly larger for visibility on mobile but still realistic
+    // Height (Lat) = 4.5m -> ~0.00004
+    // Width (Lng) = 2.4m -> ~0.000028
+
+    const heightLat = 0.000040;
+    const widthLng = 0.000028;
 
     parkingSpots.forEach(spot => {
         const spotLat = DEMO_LAT + spot.latOffset;
