@@ -4,74 +4,50 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>The Parkinator - Parking Mode Prototype</title>
-    <!-- Fonts -->
+    <title>Welcome to Loomisville</title>
+
+    <!-- Google Fonts: Fredoka for that "Cartoon" look -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&display=swap" rel="stylesheet">
 
-    <!-- PWA / Mobile Capable -->
-    <link rel="manifest" href="manifest.json">
-    <link rel="apple-touch-icon" href="app_icon.png">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-
-    <!-- Google Maps API -->
-    <script async
-        src="https://maps.googleapis.com/maps/api/js?key=AIzaSyB4CowaWb0KtT9AQw4zN_3eOf4sKuds890&libraries=places,geometry&v=weekly">
-        </script>
     <!-- Custom CSS -->
     <link rel="stylesheet" href="style.css">
+
+    <!-- Google Maps API -->
+    <!-- Libraries: marker (for AdvancedMarkerElement), places, 3d -->
+    <script>
+        (g => { var h, a, k, p = "The Google Maps JavaScript API", c = "google", l = "importLibrary", q = "__ib__", m = document, b = window; b = b[c] || (b[c] = {}); var d = b.maps || (b.maps = {}), r = new Set, e = new URLSearchParams, u = () => h || (h = new Promise(async (f, n) => { await (a = m.createElement("script")); e.set("libraries", [...r] + ""); for (k in g) e.set(k.replace(/[A-Z]/g, t => "_" + t[0].toLowerCase()), g[k]); e.set("callback", c + ".maps." + q); a.src = `https://maps.${c}apis.com/maps/api/js?` + e; d[q] = f; a.onerror = () => h = n(Error(p + " could not load.")); a.nonce = m.querySelector("script[nonce]")?.nonce || ""; m.head.append(a) })); d[l] ? console.warn(p + " only loads once. Ignoring:", g) : d[l] = (f, ...n) => r.add(f) && u().then(() => d[l](f, ...n)) })({
+            key: "AIzaSyB4CowaWb0KtT9AQw4zN_3eOf4sKuds890",
+            v: "weekly",
+            // Valid MapID is required for Vector 3D View. Using a demo one usually works, 
+            // or the user's specific one if they had it. 
+            // We will try a known vector-enabled ID or 'DEMO_MAP_ID'.
+            mapIds: ["DEMO_MAP_ID"]
+        });
+    </script>
 </head>
 
 <body>
-    <div id="app-container">
-        <!-- Map Container -->
-        <div id="map"></div>
 
-        <!-- Navigation UI (Top Bar) -->
-        <div class="nav-bar glass-panel">
-            <div class="nav-input">
-                <span class="nav-icon">📍</span>
-                <input type="text" value="Hudson Amtrak Station, Hudson, NY" readonly>
-            </div>
-        </div>
+    <div id="ui-container">
+        <header>
+            <h1>LOOMISVILLE</h1>
+            <p>The 3D Cartoon City</p>
+        </header>
 
-        <!-- Navigation UI (Bottom Bar - Arrival State) -->
-        <div id="arrival-panel" class="bottom-panel glass-panel">
-            <div class="arrival-info">
-                <h2>Arrived at Destination</h2>
-                <p>Hudson Amtrak Station</p>
-            </div>
-            <!-- The Logic Button -->
-            <button id="enable-parking-btn" class="primary-btn glow-effect">
-                <span class="btn-icon">P</span> Enable Parking Mode
-            </button>
-        </div>
-
-        <!-- Parking Mode UI (Hidden initially) -->
-        <div id="parking-panel" class="bottom-panel glass-panel hidden">
-            <div class="parking-header">
-                <div class="parking-stat">
-                    <span class="stat-value text-green">12</span>
-                    <span class="stat-label">Open Spots</span>
-                </div>
-                <div class="parking-stat">
-                    <span class="stat-value text-orange">User Reported</span>
-                    <span class="stat-label">Real-time</span>
-                </div>
-            </div>
-            <button id="navigate-spot-btn" class="primary-btn">
-                Navigate to Closest Spot
-            </button>
-            <div style="text-align: center; margin-top: 10px; font-size: 0.7em; opacity: 0.6;">
-                Prototype v13.1 - Calibrated & Perpendicular (11.5m)
-            </div>
+        <div id="landmark-list">
+            <h2>Landmarks</h2>
+            <button onclick="flyTo('liam')">Liam Square</button>
+            <button onclick="flyTo('reed')">Reed's Rail Road</button>
+            <button onclick="flyTo('gabby')">Gabby's Tavern</button>
+            <button onclick="flyTo('cgcc')">Columbia Greene CC</button>
         </div>
     </div>
 
-    <!-- App Logic -->
-    <script src="app_v13_1.js"></script>
+    <div id="map"></div>
+
+    <script src="app.js"></script>
 </body>
 
 </html>
