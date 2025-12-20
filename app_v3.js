@@ -9,116 +9,152 @@ const appState = {
     navigationLine: null
 };
 
-// Parking Spots Data (Fake Data)
-// Calibrated for TIGHTER spacing and SMALLER size (v3.1)
-const parkingSpots = [
-    // Row 1 (North)
-    // Decreased lng spacing from 0.00005 to 0.00003
-    { id: 1, latOffset: 0.00009, lngOffset: -0.000045, available: true },
-    { id: 2, latOffset: 0.00009, lngOffset: -0.000015, available: false },
-    { id: 3, latOffset: 0.00009, lngOffset: 0.000015, available: true },
-    { id: 4, latOffset: 0.00009, lngOffset: 0.000045, available: false },
+// Street Heading: Approx 322 degrees (NW) for Cross St in Hudson, NY
+const STREET_HEADING = 322;
 
-    // Row 2 (South)
-    // Decreased lat gap between rows (driving lane) from 0.00008 to 0.00006
-    { id: 5, latOffset: 0.00003, lngOffset: -0.000045, available: true },
-    { id: 6, latOffset: 0.00003, lngOffset: -0.000015, available: true }, // Targeted spot
-    { id: 7, latOffset: 0.00003, lngOffset: 0.000015, available: false },
-    { id: 8, latOffset: 0.00003, lngOffset: 0.000045, available: false },
+// Base anchor point for the first spot (Near the corner of projected street)
+const ANCHOR_LAT = 42.25385;
+const ANCHOR_LNG = -73.79675;
+
+// Spot Dimensions in Meters (converted roughly to Lat/Lng degrees)
+// Parallel Parking Spot: 2.4m wide x 6.0m long
+const SPOT_WIDTH_METERS = 2.4;
+const SPOT_LENGTH_METERS = 6.0;
+
+// Helper to move a point by meters
+function offsetGap(lat, lng, bearing, distanceMeters) {
+    const R = 6378137; // Earth Radius in meters
+    const dn = distanceMeters * Math.cos(bearing * Math.PI / 180);
+    const de = distanceMeters * Math.sin(bearing * Math.PI / 180);
+
+    // Coordinate offsets in radians
+    const dLat = dn / R;
+    const dLon = de / (R * Math.cos(Math.PI * lat / 180));
+
+    // OffsetPosition, decimal degrees
+    return {
+        lat: lat + dLat * 180 / Math.PI,
+        lng: lng + dLon * 180 / Math.PI
+    };
+}
+
+// Data: 6 spots in a row along the street
+const parkingSpots = [
+    { id: 1, available: true },
+    { id: 2, available: false },
+    { id: 3, available: true },
+    { id: 4, available: true }, // Target
+    { id: 5, available: false },
+    { id: 6, available: false },
 ];
 
 function initApp() {
-    // Standard Google Maps Setup
     appState.map = new google.maps.Map(document.getElementById("map"), {
         center: { lat: DEMO_LAT, lng: DEMO_LNG },
-        zoom: 20, // Increased default zoom slightly
+        zoom: 20,
         mapTypeId: "roadmap",
         disableDefaultUI: true,
-        heading: 0,
+        heading: 0, // Keep map North-up for clarity, or user can rotate
         tilt: 45,
     });
 
-    // Initial Marker
     new google.maps.Marker({
         position: { lat: DEMO_LAT, lng: DEMO_LNG },
         map: appState.map,
         title: "Hudson Amtrak Station"
     });
 
-    // Event Listeners
     document.getElementById('enable-parking-btn').addEventListener('click', enableParkingMode);
     document.getElementById('navigate-spot-btn').addEventListener('click', navigateToSpot);
 }
 
 function enableParkingMode() {
-    console.log("Activating Parking Mode...");
-
-    // 1. Zoom in and Tilt for "Parking/Arrival" feel
     appState.map.moveCamera({
         center: { lat: DEMO_LAT, lng: DEMO_LNG },
         zoom: 21,
         tilt: 45,
-        heading: 0
+        heading: STREET_HEADING // Rotate map to align with street!
     });
 
-    // 2. UI Transitions
     document.getElementById('arrival-panel').classList.add('hidden');
-
     setTimeout(() => {
         document.getElementById('parking-panel').classList.remove('hidden');
         renderParkingSpots();
     }, 1000);
 }
 
+function getRectCoords(centerLat, centerLng, widthM, lengthM, heading) {
+    // Calculate 4 corners of a rotated rectangle
+    // Heading is the direction the "Length" side points to
+
+    // Corners relative to center (bearing to corner, distance to corner)
+    // Distance to corner = sqrt((w/2)^2 + (l/2)^2)
+    const diagDist = Math.sqrt((widthM / 2) ** 2 + (lengthM / 2) ** 2);
+
+    // Base angles to corners (relative to the heading axis)
+    // alpha = atan((w/2) / (l/2))
+    const alpha = Math.atan(widthM / lengthM) * (180 / Math.PI);
+
+    const bearings = [
+        heading + alpha,        // NE corner (relative)
+        heading + 180 - alpha,  // SE
+        heading + 180 + alpha,  // SW
+        heading - alpha         // NW
+    ];
+
+    return bearings.map(b => offsetGap(centerLat, centerLng, b, diagDist));
+}
+
 function renderParkingSpots() {
-    // v3.1 ADJUSTMENTS
-    // Reduced dimensions again for realism
-    const heightLat = 0.000035; // Previously 0.000040
-    const widthLng = 0.000022;  // Previously 0.000028
+    // Render spots in a line along the street heading
+    let currentCenter = { lat: ANCHOR_LAT, lng: ANCHOR_LNG };
 
-    parkingSpots.forEach(spot => {
-        const spotLat = DEMO_LAT + spot.latOffset;
-        const spotLng = DEMO_LNG + spot.lngOffset;
+    // Gap between spots (virtually 0 as requested)
+    const GAP_METERS = 0.2;
 
+    parkingSpots.forEach((spot, index) => {
         const color = spot.available ? '#34C759' : '#FF3B30';
 
-        // Define rectangle bounds (centered on the point)
-        const halfH = heightLat / 2;
-        const halfW = widthLng / 2;
-
-        const coords = [
-            { lat: spotLat - halfH, lng: spotLng - halfW }, // SW
-            { lat: spotLat + halfH, lng: spotLng - halfW }, // NW
-            { lat: spotLat + halfH, lng: spotLng + halfW }, // NE
-            { lat: spotLat - halfH, lng: spotLng + halfW }, // SE
-        ];
+        const coords = getRectCoords(
+            currentCenter.lat,
+            currentCenter.lng,
+            SPOT_WIDTH_METERS,
+            SPOT_LENGTH_METERS,
+            STREET_HEADING
+        );
 
         const polygon = new google.maps.Polygon({
             paths: coords,
             strokeColor: color,
-            strokeOpacity: 0.8,
-            strokeWeight: 2,
+            strokeOpacity: 1.0,
+            strokeWeight: 1, // Thinner border for tighter look
             fillColor: color,
-            fillOpacity: 0.35,
+            fillOpacity: 0.4,
             map: appState.map
         });
 
+        // Save polygon center for navigation
+        spot.center = currentCenter;
+
         appState.parkingPolygons.push(polygon);
+
+        // Move center to next spot position
+        // Move along the street heading by Length + Gap
+        currentCenter = offsetGap(
+            currentCenter.lat,
+            currentCenter.lng,
+            STREET_HEADING,
+            SPOT_LENGTH_METERS + GAP_METERS
+        );
     });
 }
 
 function navigateToSpot() {
-    // Simulate finding the best spot (spot #6 is our target)
-    const targetSpot = parkingSpots.find(s => s.id === 6);
+    const targetSpot = parkingSpots.find(s => s.id === 4);
     const start = { lat: DEMO_LAT, lng: DEMO_LNG };
-    const end = { lat: DEMO_LAT + targetSpot.latOffset, lng: DEMO_LNG + targetSpot.lngOffset };
+    const end = targetSpot.center;
 
-    // Simple path for visual
-    const navigationPath = [
-        start,
-        { lat: start.lat, lng: end.lng }, // elbow turn
-        end
-    ];
+    const navigationPath = [start, end];
 
     appState.navigationLine = new google.maps.Polyline({
         path: navigationPath,
@@ -129,9 +165,7 @@ function navigateToSpot() {
         map: appState.map
     });
 
-    // Adjust camera to fit the path
     appState.map.panTo(start);
 }
 
-// Start 
 window.onload = initApp;
