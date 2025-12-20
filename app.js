@@ -1,14 +1,15 @@
 /* The Parkinator - Real World Edition */
-/* Strategy: Local DB + Pricing + Multi-Reservations + WorldTimeAPI */
+/* Strategy: Local DB + Pricing + Multi-Reservations + WorldTimeAPI + Mobile UX */
 
 let map;
 let allMarkers = [];
 let parkingDatabase = [];
 const ZOOM_THRESHOLD = 15;
+const PRICE_VISIBILITY_ZOOM = 18; // Only show prices when zoomed in
 let activeInfoWindow = null;
 
 // Track Multiple User Reservations
-let myReservations = [];
+let myReservations = []; // { spaceid, type, lat, lng, time, price, startTime }
 
 window.initMap = async function () {
     const { Map, InfoWindow } = await google.maps.importLibrary("maps");
@@ -23,6 +24,7 @@ window.initMap = async function () {
         tilt: 0,
         disableDefaultUI: true,
         zoomControl: true,
+        gestureHandling: "greedy", // ENABLE ONE-FINGER PAN ON MOBILE
     });
 
     activeInfoWindow = new InfoWindow();
@@ -84,6 +86,42 @@ window.navigateToReservation = (index) => {
     }
 };
 
+// BILLING LOGIC
+window.endReservation = (index) => {
+    if (!myReservations[index]) return;
+
+    const res = myReservations[index];
+    const duration = 15 + Math.floor(Math.random() * 45); // Simulate duration minutes
+    const totalCost = res.price; // Flat rate for demo, could be per hour
+
+    // 1. Show Bill
+    const billMsg = `
+    🧾 YOUR RECEIPT
+    ----------------------------
+    Space ID: ${res.spaceid}
+    Duration: ${duration} mins
+    ----------------------------
+    TOTAL PAID: $${totalCost.toFixed(2)}
+    ----------------------------
+    Thank you for using Parkinator!
+    `;
+    alert(billMsg);
+
+    // 2. Free up the spot in local DB
+    const meter = parkingDatabase.find(m => m.spaceid === res.spaceid);
+    if (meter) {
+        meter.status = 'free';
+    }
+
+    // 3. Remove from array
+    myReservations.splice(index, 1);
+
+    // 4. Refresh UI
+    google.maps.importLibrary("marker").then(({ AdvancedMarkerElement }) => {
+        updateMap(AdvancedMarkerElement);
+    });
+};
+
 // Trusted Time API
 async function getTrustedTime() {
     try {
@@ -96,7 +134,6 @@ async function getTrustedTime() {
     }
 }
 
-// Helper: Get Time Object + Hours
 async function getTimePlusHoursStr(hours) {
     const d = await getTrustedTime();
     d.setHours(d.getHours() + hours);
@@ -116,12 +153,10 @@ window.handleReserve = async (spaceId, type) => {
     let reserveTime = "Now";
 
     if (type === 'now') {
-        alert(`SUCCESS!\n\nSpace ${spaceId} Reserved for 15 minutes.\n$${meter.priceVal} charged.`);
+        alert(`SUCCESS!\n\nSpace ${spaceId} Reserved.\nRate: $${meter.priceVal}/hr`);
         meter.status = 'reserved';
     } else if (type === 'later') {
-
-        // Use Trusted API Time
-        let defaultTime = "6:00 PM"; // fallback
+        let defaultTime = "6:00 PM";
         let promptMsg = "Enter reservation time:";
 
         if (meter.status === 'soon') {
@@ -147,6 +182,7 @@ window.handleReserve = async (spaceId, type) => {
         spaceid: spaceId,
         type: type,
         time: reserveTime,
+        price: meter.priceVal,
         lat: parseFloat(meter.latlng.latitude),
         lng: parseFloat(meter.latlng.longitude)
     });
@@ -213,32 +249,36 @@ function updateStats(meters, container) {
         let listHtml = myReservations.map((res, index) => {
             return `
                 <div style="
-                    background:white; border-radius:6px; padding:6px; margin:4px 0; 
-                    display:flex; justify-content:space-between; align-items:center; border-left: 4px solid #F57F17;
+                    background:white; border-radius:6px; padding:8px; margin:4px 0; 
+                    border-left: 4px solid #1A73E8;
                 ">
-                    <div style="font-size:11px; text-align:left;">
-                        <b>ID: ${res.spaceid}</b><br>
-                        Time: ${res.time}
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                        <div style="font-size:11px;"><b>Space ${res.spaceid}</b></div>
+                        <div style="font-size:10px; color:#555;">${res.time}</div>
                     </div>
-                    <button onclick="navigateToReservation(${index})" style="
-                        background:#F57F17; color:white; border:none; border-radius:100px; padding:4px 8px; font-size:10px; cursor:pointer;
-                    ">GO</button>
+                    <div style="display:flex; gap:4px;">
+                        <button onclick="navigateToReservation(${index})" style="
+                            background:#1A73E8; color:white; border:none; border-radius:4px; padding:4px 6px; font-size:10px; cursor:pointer; flex:1;
+                        ">GO</button>
+                        <button onclick="endReservation(${index})" style="
+                            background:#d93025; color:white; border:none; border-radius:4px; padding:4px 6px; font-size:10px; cursor:pointer; flex:1;
+                        ">END & PAY</button>
+                    </div>
                 </div>
             `;
         }).join('');
 
-        // Use DETAILS element for Dropdown
         reservationHtml = `
             <div style="margin-bottom:8px;">
                  <details open style="
-                    background:#FFF8E1; border: 1px solid #FFD54F; border-radius:8px; overflow:hidden;
+                    background:#e8f0fe; border: 1px solid #1A73E8; border-radius:8px; overflow:hidden;
                  ">
                     <summary style="
-                        background:#FFECB3; padding:8px; font-size:11px; text-transform:uppercase; color:#F57F17; font-weight:bold; cursor:pointer; outline:none;
+                        background:#d2e3fc; padding:8px; font-size:11px; text-transform:uppercase; color:#1967d2; font-weight:bold; cursor:pointer; outline:none;
                     ">
                         My Reservations (${myReservations.length}) ▼
                     </summary>
-                    <div style="padding:4px; max-height:150px; overflow-y:auto;">
+                    <div style="padding:4px; max-height:200px; overflow-y:auto;">
                         ${listHtml}
                     </div>
                  </details>
@@ -277,6 +317,7 @@ function clearMarkers() {
 function renderMarkers(data, AdvancedMarkerElement) {
     const MAX_RENDER = 1000;
     const renderData = data.slice(0, MAX_RENDER);
+    const zoom = map.getZoom();
 
     const bigStarSvg = (color) => `
         <svg width="40" height="40" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -303,12 +344,15 @@ function renderMarkers(data, AdvancedMarkerElement) {
         }
 
         if (isMyReservation) {
-            color = "#1A73E8"; // Blue for Reserved Star
+            color = "#1A73E8"; // Blue Star
             zIndex = 10;
         }
 
         let priceLabel = "";
-        if (meter.priceVal > 0 && meter.status !== 'taken' && !isMyReservation) {
+        // SHOW PRICE ONLY IF ZOOM >= 18 (and not hidden by reservation/taken)
+        const showPrice = (zoom >= PRICE_VISIBILITY_ZOOM);
+
+        if (showPrice && meter.priceVal > 0 && meter.status !== 'taken' && !isMyReservation) {
             priceLabel = `<div style="
                 background: white; padding: 1px 4px; border-radius: 4px; font-size: 10px; font-weight: bold; color: #333; 
                 box-shadow: 0 1px 2px rgba(0,0,0,0.2); margin-bottom: 2px; white-space: nowrap; position: absolute; bottom: ${isMyReservation ? '40px' : '14px'}; left: 50%; transform: translateX(-50%);
