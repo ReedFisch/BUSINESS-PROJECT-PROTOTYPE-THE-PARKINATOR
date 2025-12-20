@@ -5,7 +5,7 @@ let map;
 let allMarkers = [];
 let parkingDatabase = [];
 const ZOOM_THRESHOLD = 15;
-const PRICE_VISIBILITY_ZOOM = 18; // Only show prices when zoomed in
+const PRICE_VISIBILITY_ZOOM = 16; // Approx. 0.5 mile view on mobile
 let activeInfoWindow = null;
 
 // Track Multiple User Reservations
