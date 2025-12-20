@@ -43,6 +43,56 @@ const LOCATIONS = {
     }
 };
 
+// ADD MICRO-PARKING SPOTS
+// We will programmatically draw "Tiny" specific spots in the parking lot areas.
+// Zones defined by [Box Center Y, Box Center X] and dimensions.
+const PARKING_ZONES = [
+    { center: [750, 300], rows: 4, cols: 8, vertical: false }, // Near Park - Horizontal Lots
+    { center: [850, 250], rows: 4, cols: 6, vertical: true },  // Near Tavern - Vertical Lots
+    { center: [300, 300], rows: 3, cols: 10, vertical: false }, // Left Side
+    { center: [350, 850], rows: 5, cols: 8, vertical: true }   // College Lot
+];
+
+const SPOT_SIZE_PX = 8; // "Really Tiny" pixels
+const GAP_PX = 2;
+
+PARKING_ZONES.forEach(zone => {
+    drawParkingGrid(zone);
+});
+
+function drawParkingGrid(zone) {
+    const { center, rows, cols, vertical } = zone;
+    const [centerY, centerX] = center;
+
+    // Calculate starting top-left to center the grid
+    const gridWidth = cols * (SPOT_SIZE_PX + GAP_PX);
+    const gridHeight = rows * (SPOT_SIZE_PX + GAP_PX);
+
+    const startY = centerY + (gridHeight / 2); // Leaflet Y goes up? No, ImageOverlay [0,0] is bottom-left usually.
+    const startX = centerX - (gridWidth / 2);
+
+    for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+            const y = startY - (r * (SPOT_SIZE_PX + GAP_PX));
+            const x = startX + (c * (SPOT_SIZE_PX + GAP_PX));
+
+            // Define corners for rectangle
+            // If vertical, swap width/length logic if needed, but here simple grid.
+            const bounds = [
+                [y, x],
+                [y - SPOT_SIZE_PX, x + SPOT_SIZE_PX]
+            ];
+
+            L.rectangle(bounds, {
+                color: "white",
+                weight: 0.5,
+                fillColor: "#34C759", // Tiny Green "Available" Spots
+                fillOpacity: 0.6
+            }).addTo(map);
+        }
+    }
+}
+
 // Add Markers
 Object.keys(LOCATIONS).forEach(key => {
     const loc = LOCATIONS[key];
