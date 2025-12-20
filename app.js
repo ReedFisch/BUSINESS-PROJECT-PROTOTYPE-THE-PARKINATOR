@@ -1,11 +1,14 @@
 /* The Parkinator - Real World Edition */
-/* Strategy: Local DB + Pricing + Reservations */
+/* Strategy: Local DB + Pricing + Smart Reservations */
 
 let map;
 let allMarkers = [];
 let parkingDatabase = [];
 const ZOOM_THRESHOLD = 15;
 let activeInfoWindow = null;
+
+// Track User Reservation
+let myReservation = null; // { spaceid, type, lat, lng }
 
 window.initMap = async function () {
     const { Map, InfoWindow } = await google.maps.importLibrary("maps");
@@ -73,45 +76,52 @@ window.navigateToCheapest = () => {
     }
 };
 
+window.navigateToMySpot = () => {
+    if (myReservation) {
+        map.panTo({ lat: myReservation.lat, lng: myReservation.lng });
+        map.setZoom(19);
+    } else {
+        alert("You don't have a reservation yet!");
+    }
+};
+
 // Reservation Logic
 window.handleReserve = (spaceId, type) => {
-    // Find meter
     const meter = parkingDatabase.find(m => m.spaceid === spaceId);
     if (!meter) return;
 
+    // Clear previous if exists (simplified for demo)
+    if (myReservation) {
+        const oldMeter = parkingDatabase.find(m => m.spaceid === myReservation.spaceid);
+        if (oldMeter) oldMeter.status = 'free'; // Release old
+    }
+
     if (type === 'now') {
         alert(`SUCCESS!\n\nSpace ${spaceId} Reserved for 15 minutes.\n$${meter.priceVal} charged.`);
-        meter.status = 'reserved'; // New status
+        meter.status = 'reserved';
     } else if (type === 'later') {
         const time = prompt("Enter reservation time (e.g. 6:00 PM):", "6:00 PM");
         if (time) {
             alert(`CONFIRMED.\n\nSpace ${spaceId} reserved for ${time}.`);
-            meter.status = 'scheduled'; // New status
+            meter.status = 'scheduled';
         } else {
             return;
         }
     }
 
-    // Refresh Map to show new color
+    // Save Reservation State
+    myReservation = {
+        spaceid: spaceId,
+        type: type,
+        lat: parseFloat(meter.latlng.latitude),
+        lng: parseFloat(meter.latlng.longitude)
+    };
+
     activeInfoWindow.close();
-    // Re-render
-    clearMarkers();
-    // We need to re-fetch AdvancedMarkerElement class reference... 
-    // Simplified: Just trigger 'idle' or call render directly if we stored the class
+
+    // Refresh
     google.maps.importLibrary("marker").then(({ AdvancedMarkerElement }) => {
-        const bounds = map.getBounds();
-        const ne = bounds.getNorthEast();
-        const sw = bounds.getSouthWest();
-        const visibleMeters = parkingDatabase.filter(m => {
-            if (!m.latlng) return false;
-            const lat = parseFloat(m.latlng.latitude);
-            const lng = parseFloat(m.latlng.longitude);
-            return lat >= sw.lat() && lat <= ne.lat() && lng >= sw.lng() && lng <= ne.lng();
-        });
-        renderMarkers(visibleMeters, AdvancedMarkerElement);
-        // Refresh stats
-        const statsDiv = document.getElementById('stats');
-        updateStats(visibleMeters, statsDiv);
+        updateMap(AdvancedMarkerElement);
     });
 };
 
@@ -153,7 +163,7 @@ function updateStats(meters, container) {
 
     const available = meters.filter(m => m.status === 'free');
 
-    // Find Cheapest
+    // Find Cheapest (Only Free ones, not Soon)
     let minPrice = Infinity;
     cheapestMeterInView = null;
     available.forEach(m => {
@@ -164,18 +174,42 @@ function updateStats(meters, container) {
     });
     const cheapDisp = minPrice !== Infinity ? `$${minPrice.toFixed(2)}` : "--";
 
+    // Dynamic Button: "Nav to Reservation" OR "Nav to Cheapest"
+    let actionButton = '';
+
+    if (myReservation) {
+        // Show "My Spot" button
+        actionButton = `
+            <div style="background:#FFF8E1; padding:10px; border-radius:8px; text-align:center; border: 1px solid #FFD54F;">
+                 <div style="font-size:10px; text-transform:uppercase; color:#F57F17;">My Reservation</div>
+                 <div style="font-size:18px; font-weight:900; color:#F57F17;">Space ${myReservation.spaceid}</div>
+                 <button onclick="navigateToMySpot()" style="
+                    background: #F57F17; border:none; color:white; padding:6px 12px; border-radius:100px; cursor:pointer; font-weight:bold; margin-top:4px;
+                 ">Navigate to My Spot</button>
+            </div>
+            <div style="text-align:center; margin-top:8px;">
+                 <a href="#" onclick="navigateToCheapest()" style="color:#1967d2; font-size:11px;">or view cheapest ($${minPrice.toFixed(2)})</a>
+            </div>
+        `;
+    } else {
+        // Default Cheapest
+        actionButton = `
+            <div style="background:#e8f0fe; padding:10px; border-radius:8px; text-align:center;">
+                 <div style="font-size:10px; text-transform:uppercase; color:#1967d2;">Cheapest Nearby</div>
+                 <div style="font-size:24px; font-weight:900; color:#1967d2;">${cheapDisp}</div>
+                 <button onclick="navigateToCheapest()" style="
+                    background: #1967d2; border:none; color:white; padding:6px 12px; border-radius:100px; cursor:pointer; font-weight:bold;
+                 ">Navigate to Meter</button>
+            </div>
+        `;
+    }
+
     container.innerHTML = `
         <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
             <div><small>VISIBLE</small> <b>${meters.length}</b></div>
             <div style="text-align:right;"><small>FREE</small> <b style="color:#34C759;">${available.length}</b></div>
         </div>
-        <div style="background:#e8f0fe; padding:10px; border-radius:8px; text-align:center;">
-             <div style="font-size:10px; text-transform:uppercase; color:#1967d2;">Cheapest Nearby</div>
-             <div style="font-size:24px; font-weight:900; color:#1967d2;">${cheapDisp}</div>
-             <button onclick="navigateToCheapest()" style="
-                background: #1967d2; border:none; color:white; padding:6px 12px; border-radius:100px; cursor:pointer; font-weight:bold;
-             ">Navigate to Meter</button>
-        </div>
+        ${actionButton}
     `;
 }
 
@@ -188,12 +222,21 @@ function renderMarkers(data, AdvancedMarkerElement) {
     const MAX_RENDER = 1000;
     const renderData = data.slice(0, MAX_RENDER);
 
+    // Big Star SVG for Reserved
+    const bigStarSvg = (color) => `
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+             <path d="M12 17.27L18.18 21L16.54 13.97L22 9.24L14.81 8.63L12 2L9.19 8.63L2 9.24L7.46 13.97L5.82 21L12 17.27Z" 
+                   fill="${color}" stroke="white" stroke-width="1.5"/>
+        </svg>
+    `;
+
     renderData.forEach(meter => {
         const lat = parseFloat(meter.latlng.latitude);
         const lng = parseFloat(meter.latlng.longitude);
 
         let color = "#34C759"; // Green
         let zIndex = 3;
+        let isReserved = false;
 
         if (meter.status === 'taken') {
             color = "#EA4335"; // Red
@@ -201,30 +244,38 @@ function renderMarkers(data, AdvancedMarkerElement) {
         } else if (meter.status === 'soon') {
             color = "#FBBC04"; // Yellow
             zIndex = 2;
-        } else if (meter.status === 'reserved') {
-            color = "#1A73E8"; // Blue (Reserved)
-            zIndex = 4;
-        } else if (meter.status === 'scheduled') {
-            color = "#9334E6"; // Purple (Scheduled)
-            zIndex = 4;
+        } else if (meter.status === 'reserved' || meter.status === 'scheduled') {
+            color = "#FBC02D"; // Gold/Orange for Star
+            isReserved = true;
+            zIndex = 10; // Top
         }
 
         let priceLabel = "";
-        if (meter.priceVal > 0 && meter.status !== 'taken') {
+        if (meter.priceVal > 0 && meter.status !== 'taken' && !isReserved) {
             priceLabel = `<div style="
                 background: white; padding: 1px 4px; border-radius: 4px; font-size: 10px; font-weight: bold; color: #333; 
-                box-shadow: 0 1px 2px rgba(0,0,0,0.2); margin-bottom: 2px; white-space: nowrap; position: absolute; bottom: 14px; left: 50%; transform: translateX(-50%);
+                box-shadow: 0 1px 2px rgba(0,0,0,0.2); margin-bottom: 2px; white-space: nowrap; position: absolute; bottom: ${isReserved ? '40px' : '14px'}; left: 50%; transform: translateX(-50%);
             ">$${meter.priceVal.toFixed(2)}</div>`;
         }
 
         const iconContainer = document.createElement('div');
         iconContainer.style.position = 'relative';
-        iconContainer.innerHTML = `
-            ${priceLabel}
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:block; margin:auto;">
-                <circle cx="8" cy="8" r="6" fill="${color}" stroke="white" stroke-width="2"/>
-            </svg>
-        `;
+
+        if (isReserved) {
+            // RENDER BIG STAR
+            iconContainer.innerHTML = `
+                ${priceLabel}
+                ${bigStarSvg(color)}
+            `;
+        } else {
+            // RENDER CIRCLE
+            iconContainer.innerHTML = `
+                ${priceLabel}
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:block; margin:auto;">
+                    <circle cx="8" cy="8" r="6" fill="${color}" stroke="white" stroke-width="2"/>
+                </svg>
+            `;
+        }
 
         const marker = new AdvancedMarkerElement({
             map: map,
@@ -235,20 +286,39 @@ function renderMarkers(data, AdvancedMarkerElement) {
         });
 
         // Click Logic
-        if (meter.status === 'free' || meter.status === 'soon') {
-            iconContainer.style.cursor = "pointer"; // Hand cursor
+        if ((meter.status === 'free' || meter.status === 'soon') && !isReserved) {
+            iconContainer.style.cursor = "pointer";
+
             marker.addListener('click', () => {
+
+                // CONDITIONAL LOGIC:
+                // If 'soon' (Yellow), DISABLE Reserve Now.
+                // If 'free' (Green), ENABLE Reserve Now.
+
+                const isSoon = (meter.status === 'soon');
+                let nowBtn = '';
+
+                if (isSoon) {
+                    // Disabled Button Look
+                    nowBtn = `<button disabled style="
+                        background:#ccc; color:#666; border:none; padding:6px 12px; border-radius:4px; font-weight:bold; flex:1; cursor:not-allowed;
+                     ">Occupied (Wait)</button>`;
+                } else {
+                    // Active Button
+                    nowBtn = `<button onclick="window.handleReserve('${meter.spaceid}', 'now')" style="
+                        background:#1A73E8; color:white; border:none; padding:6px 12px; border-radius:4px; cursor:pointer; font-weight:bold; flex:1;
+                     ">Reserve Now</button>`;
+                }
+
                 const contentStr = `
                     <div style="font-family:Roboto,sans-serif; min-width:200px;">
                         <h3 style="margin:0 0 8px 0; font-size:16px;">Space ${meter.spaceid}</h3>
                         <p style="margin:0 0 8px 0; color:#555;">
-                            Rate: <b>$${meter.priceVal || 'N/A'}</b><br>
-                            Limit: ${meter.timelimit || 'N/A'}
+                            Status: <b style="color:${isSoon ? '#F9A825' : '#188038'}">${isSoon ? 'Available Soon' : 'Free Now'}</b><br>
+                            Rate: <b>$${meter.priceVal || 'N/A'}</b>
                         </p>
                         <div style="display:flex; gap:8px;">
-                            <button onclick="window.handleReserve('${meter.spaceid}', 'now')" style="
-                                background:#1A73E8; color:white; border:none; padding:6px 12px; border-radius:4px; cursor:pointer; font-weight:bold; flex:1;
-                            ">Reserve Now</button>
+                            ${nowBtn}
                             <button onclick="window.handleReserve('${meter.spaceid}', 'later')" style="
                                 background:#f1f3f4; color:#3c4043; border:1px solid #dadce0; padding:6px 12px; border-radius:4px; cursor:pointer; font-weight:bold; flex:1;
                             ">Later</button>
