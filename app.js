@@ -1,7 +1,7 @@
-// Initial Credentials - Using Hudson, NY
-// Hudson Amtrak Station approx location
-const DEMO_LAT = 42.2536;
-const DEMO_LNG = -73.7965;
+// Initial Credentials - Using Hudson Amtrak Station
+// Adjusted center to the actual parking lot specifics
+const DEMO_LAT = 42.2538;
+const DEMO_LNG = -73.7968;
 
 const appState = {
     isParkingMode: false,
@@ -10,16 +10,18 @@ const appState = {
 };
 
 // Parking Spots Data (Fake Data)
-// Relative offsets to the center to simulate a lot
+// calibrated to be roughly in the parking rows
 const parkingSpots = [
-    { id: 1, latOffset: 0.0001, lngOffset: 0.0001, available: true },
-    { id: 2, latOffset: 0.0001, lngOffset: 0.0002, available: false },
-    { id: 3, latOffset: 0.0001, lngOffset: 0.0003, available: true },
-    { id: 4, latOffset: 0.0001, lngOffset: 0.0004, available: false },
-    { id: 5, latOffset: 0.0000, lngOffset: 0.0001, available: true },
-    { id: 6, latOffset: 0.0000, lngOffset: 0.0002, available: true }, // Targeted spot
-    { id: 7, latOffset: 0.0000, lngOffset: 0.0003, available: false },
-    { id: 8, latOffset: 0.0000, lngOffset: 0.0004, available: false },
+    // Row 1
+    { id: 1, latOffset: 0.00008, lngOffset: -0.00005, available: true },
+    { id: 2, latOffset: 0.00008, lngOffset: 0.00000, available: false },
+    { id: 3, latOffset: 0.00008, lngOffset: 0.00005, available: true },
+    { id: 4, latOffset: 0.00008, lngOffset: 0.00010, available: false },
+    // Row 2
+    { id: 5, latOffset: 0.00002, lngOffset: -0.00005, available: true },
+    { id: 6, latOffset: 0.00002, lngOffset: 0.00000, available: true }, // Targeted spot
+    { id: 7, latOffset: 0.00002, lngOffset: 0.00005, available: false },
+    { id: 8, latOffset: 0.00002, lngOffset: 0.00010, available: false },
 ];
 
 function initApp() {
@@ -27,14 +29,14 @@ function initApp() {
     appState.map = L.map('map', {
         zoomControl: false,
         attributionControl: false
-    }).setView([DEMO_LAT, DEMO_LNG], 17); // High zoom for Arrival
+    }).setView([DEMO_LAT, DEMO_LNG], 18); // Start slightly zoomed out
 
-    // Standard Map Tiles (Voyager / CartoDB for clean look)
+    // Standard Map Tiles
     L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-        maxZoom: 20
+        maxZoom: 19
     }).addTo(appState.map);
 
-    // Initial Marker (Destination)
+    // Initial Marker
     L.marker([DEMO_LAT, DEMO_LNG]).addTo(appState.map)
         .bindPopup('Hudson Amtrak Station').openPopup();
 
@@ -47,9 +49,10 @@ function enableParkingMode() {
     console.log("Activating Parking Mode...");
 
     // 1. Zoom in and switch to "Satellite" feel
+    // Capping maxZoom at 19 to prevent grey tiles
     L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
         attribution: 'Tiles &copy; Esri',
-        maxZoom: 22
+        maxZoom: 19
     }).addTo(appState.map);
 
     appState.map.flyTo([DEMO_LAT, DEMO_LNG], 19, {
