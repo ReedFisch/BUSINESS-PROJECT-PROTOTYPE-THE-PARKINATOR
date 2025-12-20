@@ -10,18 +10,19 @@ const appState = {
 };
 
 // Parking Spots Data (Fake Data)
-// calibrated to be roughly in the parking rows
+// Calibrated for standard parking spot size (~9x18ft)
+// Spaced to avoid overlap
 const parkingSpots = [
-    // Row 1
-    { id: 1, latOffset: 0.00008, lngOffset: -0.00005, available: true },
-    { id: 2, latOffset: 0.00008, lngOffset: 0.00000, available: false },
-    { id: 3, latOffset: 0.00008, lngOffset: 0.00005, available: true },
-    { id: 4, latOffset: 0.00008, lngOffset: 0.00010, available: false },
-    // Row 2
-    { id: 5, latOffset: 0.00002, lngOffset: -0.00005, available: true },
-    { id: 6, latOffset: 0.00002, lngOffset: 0.00000, available: true }, // Targeted spot
-    { id: 7, latOffset: 0.00002, lngOffset: 0.00005, available: false },
-    { id: 8, latOffset: 0.00002, lngOffset: 0.00010, available: false },
+    // Row 1 (North) - Spaced wider apart
+    { id: 1, latOffset: 0.00010, lngOffset: -0.00006, available: true },
+    { id: 2, latOffset: 0.00010, lngOffset: -0.00002, available: false },
+    { id: 3, latOffset: 0.00010, lngOffset: 0.00002, available: true },
+    { id: 4, latOffset: 0.00010, lngOffset: 0.00006, available: false },
+    // Row 2 (South, relative to Row 1) - clear gap between rows
+    { id: 5, latOffset: 0.00004, lngOffset: -0.00006, available: true },
+    { id: 6, latOffset: 0.00004, lngOffset: -0.00002, available: true }, // Targeted spot
+    { id: 7, latOffset: 0.00004, lngOffset: 0.00002, available: false },
+    { id: 8, latOffset: 0.00004, lngOffset: 0.00006, available: false },
 ];
 
 function initApp() {
@@ -29,12 +30,11 @@ function initApp() {
     // "Cartoon buildings" = vector map with 3D buildings enabled by default + tilt
     appState.map = new google.maps.Map(document.getElementById("map"), {
         center: { lat: DEMO_LAT, lng: DEMO_LNG },
-        zoom: 18,
+        zoom: 19, // Closer zoom by default to see spots clearly
         mapTypeId: "roadmap",
         disableDefaultUI: true, // Clean "App" look
         heading: 0,
         tilt: 45, // Gives the 3D perspective
-        // mapId: "YOUR_MAP_ID_HERE" // Required for full WebGL 3D buildings
     });
 
     // Initial Marker
@@ -55,7 +55,7 @@ function enableParkingMode() {
     // 1. Zoom in and Tilt for "Parking/Arrival" feel
     appState.map.moveCamera({
         center: { lat: DEMO_LAT, lng: DEMO_LNG },
-        zoom: 20,
+        zoom: 21,
         tilt: 45,
         heading: 0
     });
@@ -70,7 +70,10 @@ function enableParkingMode() {
 }
 
 function renderParkingSpots() {
-    const boxSize = 0.00004;
+    // SIGNIFICANTLY REDUCED SIZE
+    // Standard Spot Size: ~2.5m x 5m
+    const heightLat = 0.000025;
+    const widthLng = 0.000025;
 
     parkingSpots.forEach(spot => {
         const spotLat = DEMO_LAT + spot.latOffset;
@@ -78,12 +81,15 @@ function renderParkingSpots() {
 
         const color = spot.available ? '#34C759' : '#FF3B30';
 
-        // Define rectangle bounds relative to center
+        // Define rectangle bounds (centered on the point)
+        const halfH = heightLat / 2;
+        const halfW = widthLng / 2;
+
         const coords = [
-            { lat: spotLat - boxSize, lng: spotLng - boxSize },
-            { lat: spotLat + boxSize, lng: spotLng - boxSize },
-            { lat: spotLat + boxSize, lng: spotLng + boxSize },
-            { lat: spotLat - boxSize, lng: spotLng + boxSize },
+            { lat: spotLat - halfH, lng: spotLng - halfW }, // SW
+            { lat: spotLat + halfH, lng: spotLng - halfW }, // NW
+            { lat: spotLat + halfH, lng: spotLng + halfW }, // NE
+            { lat: spotLat - halfH, lng: spotLng + halfW }, // SE
         ];
 
         const polygon = new google.maps.Polygon({
@@ -123,9 +129,8 @@ function navigateToSpot() {
     });
 
     // Adjust camera to fit the path
-    // Google Maps fitBounds doesn't respect tilt well, so we might just pan
     appState.map.panTo(start);
 }
 
-// Start (Wait for Google Maps API to load ideally, but simple window load works for prototype)
+// Start 
 window.onload = initApp;
