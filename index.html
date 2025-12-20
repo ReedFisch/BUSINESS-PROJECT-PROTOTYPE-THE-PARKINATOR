@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Parkinator - Parking Mode Prototype</title>
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <!-- Leaflet CSS for Map -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <div id="app-container">
+        <!-- Map Container -->
+        <div id="map"></div>
+
+        <!-- Navigation UI (Top Bar) -->
+        <div class="nav-bar glass-panel">
+            <div class="nav-input">
+                <span class="nav-icon">📍</span>
+                <input type="text" value="Hudson Amtrak Station, Hudson, NY" readonly>
+            </div>
+        </div>
+
+        <!-- Navigation UI (Bottom Bar - Arrival State) -->
+        <div id="arrival-panel" class="bottom-panel glass-panel">
+            <div class="arrival-info">
+                <h2>Arrived at Destination</h2>
+                <p>Hudson Amtrak Station</p>
+            </div>
+            <!-- The Logic Button -->
+            <button id="enable-parking-btn" class="primary-btn glow-effect">
+                <span class="btn-icon">P</span> Enable Parking Mode
+            </button>
+        </div>
+
+        <!-- Parking Mode UI (Hidden initially) -->
+        <div id="parking-panel" class="bottom-panel glass-panel hidden">
+            <div class="parking-header">
+                <div class="parking-stat">
+                    <span class="stat-value text-green">12</span>
+                    <span class="stat-label">Open Spots</span>
+                </div>
+                <div class="parking-stat">
+                    <span class="stat-value text-orange">User Reported</span>
+                    <span class="stat-label">Real-time</span>
+                </div>
+            </div>
+            <button id="navigate-spot-btn" class="primary-btn">
+                Navigate to Closest Spot
+            </button>
+        </div>
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+    <!-- App Logic -->
+    <script src="app.js"></script>
+</body>
+
+</html>
