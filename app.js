@@ -1,167 +1,120 @@
-// Map Configuration - 4-Sector Mega Map (2x2 Grid)
-// Total World 3584 x 2048.
-// [0,0] is Bottom-Left (SW corner of SW sector).
+/* The Parkinator - Real World Edition */
+/* Integrates Google Maps API + LADOT Open Data (Live Viewport Filtering) */
 
-const IMAGE_WIDTH = 3584; // 1792 * 2
-const IMAGE_HEIGHT = 2048; // 1024 * 2
+let map;
+let allMarkers = [];
+const ZOOM_THRESHOLD = 16;
+const API_ENDPOINT = 'https://data.lacity.org/resource/s49e-q6j2.json';
 
-// Initialize Leaflet Map
-const map = L.map('map', {
-    crs: L.CRS.Simple,
-    minZoom: -2,
-    maxZoom: 2,
-    zoomSnap: 0.5,
-    zoomControl: false
-});
+window.initMap = async function () {
+    const { Map } = await google.maps.importLibrary("maps");
+    const { AdvancedMarkerElement, PinElement } = await google.maps.importLibrary("marker");
 
-// Define Bounds for 4 Sectors (2x2)
-// [Y, X] in Leaflet Simple.
-// SW Sector: Bottom-Left (0,0) -> (1024, 1792)
-const boundsSW = [[0, 0], [1024, 1792]];
-// SE Sector: Bottom-Right (0, 1792) -> (1024, 3584)
-const boundsSE = [[0, 1792], [1024, 3584]];
-// NW Sector: Top-Left (1024, 0) -> (2048, 1792)
-const boundsNW = [[1024, 0], [2048, 1792]];
-// NE Sector: Top-Right (1024, 1792) -> (2048, 3584)
-const boundsNE = [[1024, 1792], [2048, 3584]];
+    const position = { lat: 34.0522, lng: -118.2437 };
 
-// Add Overlays
-L.imageOverlay('loomisville_sec_sw.png', boundsSW).addTo(map);
-L.imageOverlay('loomisville_sec_se.png', boundsSE).addTo(map);
-L.imageOverlay('loomisville_sec_nw.png', boundsNW).addTo(map);
-L.imageOverlay('loomisville_sec_ne.png', boundsNE).addTo(map);
+    map = new Map(document.getElementById("map"), {
+        zoom: 16,
+        center: position,
+        mapId: "DEMO_MAP_ID",
+        tilt: 0,
+    });
 
-// Center on Mullins Square (Ideally in NW sector)
-map.setView([1500, 900], -1);
+    const statsDiv = document.getElementById('stats');
 
-// LANDMARKS
-const LOCATIONS = {
-    mullins: {
-        coords: [1536, 896], // Center of NW Sector (1024 + 512, 896)
-        title: "Mullins Square",
-        desc: "The heart of Loomisville (NW)."
-    },
-    shops: {
-        coords: [1500, 2700], // Center of NE Sector
-        title: "Shopping District",
-        desc: "Major commercial hub (NE)."
-    },
-    reed: {
-        coords: [512, 896], // Center of SW Sector
-        title: "Reed's Rail Road",
-        desc: "Central Station (SW)."
-    },
-    cgcc: {
-        coords: [512, 2700], // Center of SE Sector
-        title: "Columbia Greene CC",
-        desc: "School of Architecture (SE)."
-    }
+    // Listener: IDLE (When map stops moving)
+    map.addListener('idle', () => {
+        const zoom = map.getZoom();
+
+        if (zoom < ZOOM_THRESHOLD) {
+            clearMarkers();
+            statsDiv.innerHTML = `<span style="color:#D32F2F">Zoom in to see parking filters.</span><br>(Current Zoom: ${zoom} < ${ZOOM_THRESHOLD})`;
+        } else {
+            // Get visible bounds
+            const bounds = map.getBounds();
+            if (bounds) {
+                const ne = bounds.getNorthEast();
+                const sw = bounds.getSouthWest();
+
+                // SoQL within_box(field, nw_lat, nw_long, se_lat, se_long)
+                // NW Lat = NE Lat (top), NW Lng = SW Lng (left)
+                // SE Lat = SW Lat (bottom), SE Lng = NE Lng (right)
+
+                const nwLat = ne.lat();
+                const nwLng = sw.lng();
+                const seLat = sw.lat();
+                const seLng = ne.lng();
+
+                fetchParkingInBounds(nwLat, nwLng, seLat, seLng, AdvancedMarkerElement);
+            }
+        }
+    });
+
+    // Initial Fetch (if starting at high zoom)
+    google.maps.event.trigger(map, 'idle');
 };
 
-// ADD MICRO-PARKING SPOTS - 2x2 Grid
-const PARKING_ZONES = [
-    // NW Sector (Mullins)
-    { center: [1800, 300], rows: 5, cols: 8, vertical: false },
-    { center: [1300, 1500], rows: 4, cols: 10, vertical: false },
+async function fetchParkingInBounds(nwLat, nwLng, seLat, seLng, AdvancedMarkerElement) {
+    const statsDiv = document.getElementById('stats');
+    statsDiv.textContent = "Fetching live data...";
 
-    // NE Sector (Shops)
-    { center: [1600, 2200], rows: 6, cols: 12, vertical: true }, // Big Mall Lot
-    { center: [1900, 3200], rows: 4, cols: 8, vertical: false },
+    // Construct SoQL Query
+    // $where=within_box(lat_long, nwLat, nwLng, seLat, seLng)
+    // Note: Socrata `within_box` expects (lat_long, nw_lat, nw_long, se_lat, se_long)
+    const query = `?$where=within_box(lat_long, ${nwLat}, ${nwLng}, ${seLat}, ${seLng}) AND spaceid IS NOT NULL`;
+    const url = `${API_ENDPOINT}${query}`;
 
-    // SW Sector (Rail)
-    { center: [800, 600], rows: 3, cols: 20, vertical: false }, // Station Parking
+    try {
+        const response = await fetch(url);
+        if (!response.ok) throw new Error(`LADOT API Error: ${response.status}`);
 
-    // SE Sector (Campus)
-    { center: [300, 2500], rows: 8, cols: 8, vertical: true }   // Campus Main Lot
-];
+        const data = await response.json();
 
-const SPOT_SIZE_PX = 10;
-const GAP_PX = 3;
+        clearMarkers(); // Clear old viewport markers before showing new ones
+        renderMarkers(data, AdvancedMarkerElement);
 
-PARKING_ZONES.forEach(zone => {
-    drawParkingGrid(zone);
-});
+        statsDiv.textContent = `Found ${data.length} meters in view.`;
 
-function drawParkingGrid(zone) {
-    const { center, rows, cols, vertical } = zone;
-    const [centerY, centerX] = center;
-
-    const gridWidth = cols * (SPOT_SIZE_PX + GAP_PX);
-    const gridHeight = rows * (SPOT_SIZE_PX + GAP_PX);
-
-    const startY = centerY + (gridHeight / 2);
-    const startX = centerX - (gridWidth / 2);
-
-    for (let r = 0; r < rows; r++) {
-        for (let c = 0; c < cols; c++) {
-            const y = startY - (r * (SPOT_SIZE_PX + GAP_PX));
-            const x = startX + (c * (SPOT_SIZE_PX + GAP_PX));
-
-            const bounds = [
-                [y, x],
-                [y - SPOT_SIZE_PX, x + SPOT_SIZE_PX]
-            ];
-
-            L.rectangle(bounds, {
-                color: "white",
-                weight: 0.5,
-                fillColor: "#34C759", // Available
-                fillOpacity: 0.6
-            }).addTo(map);
-        }
+    } catch (error) {
+        console.error("Fetch Error:", error);
+        statsDiv.innerHTML = `<span style="color:red">Error loading data.</span><br>Ensure Local Server is running at http://localhost:8080`;
     }
 }
 
-// Add Markers
-Object.keys(LOCATIONS).forEach(key => {
-    const loc = LOCATIONS[key];
+function clearMarkers() {
+    allMarkers.forEach(marker => marker.map = null);
+    allMarkers = [];
+}
 
-    // Custom "Google Maps" Pin
-    const pinIcon = L.divIcon({
-        className: 'custom-pin',
-        html: `<div style="
-            background-color: #EA4335;
-            width: 30px; 
-            height: 40px; 
-            border-radius: 50% 50% 50% 0;
-            transform: rotate(-45deg);
-            box-shadow: 2px 2px 4px rgba(0,0,0,0.4);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        ">
-            <div style="
-                width: 14px; 
-                height: 14px; 
-                background:white; 
-                border-radius:50%;
-                transform: rotate(45deg);
-            "></div>
-        </div>`,
-        iconSize: [30, 42],
-        iconAnchor: [15, 42],
-        popupAnchor: [0, -40]
+function renderMarkers(data, AdvancedMarkerElement) {
+    // Shared Icon Template
+    const starSvg = document.createElement('div');
+    starSvg.innerHTML = `
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" 
+                  fill="#FFAE00" stroke="#FFFFFF" stroke-width="1.5"/>
+        </svg>
+    `;
+
+    data.forEach(meter => {
+        let lat, lng;
+
+        if (meter.lat_long && meter.lat_long.latitude) {
+            lat = parseFloat(meter.lat_long.latitude);
+            lng = parseFloat(meter.lat_long.longitude);
+        } else if (meter.latitude && meter.longitude) {
+            lat = parseFloat(meter.latitude);
+            lng = parseFloat(meter.longitude);
+        }
+
+        if (lat && lng) {
+            const icon = starSvg.cloneNode(true);
+            const marker = new AdvancedMarkerElement({
+                map: map,
+                position: { lat: lat, lng: lng },
+                title: `ID: ${meter.spaceid}`,
+                content: icon
+            });
+            allMarkers.push(marker);
+        }
     });
-
-    const marker = L.marker(loc.coords, { icon: pinIcon }).addTo(map);
-
-    // Google Maps Style Info Window
-    marker.bindPopup(`
-        <div style="font-family: Roboto, Arial; min-width: 150px;">
-            <h3 style="margin: 0; color: #202124;">${loc.title}</h3>
-            <div style="color: #E67C00; font-size: 13px; margin: 4px 0;">4.8 ★★★★★</div>
-            <p style="margin: 0; color: #5F6368; font-size: 13px;">${loc.desc}</p>
-        </div>
-    `);
-});
-
-// Pan Function
-window.panToPlace = (key) => {
-    const loc = LOCATIONS[key];
-    if (loc) {
-        map.flyTo(loc.coords, 0.5); // Zoom slightly out to show context
-    }
-};
-
-// Standard Zoom Control (Bottom Right like GMaps)
-L.control.zoom({ position: 'bottomright' }).addTo(map);
+}
