@@ -1,72 +1,78 @@
-// Map Configuration - Mega Map (Two Sectors Stitched)
-// Sector A (West): loomisville_sector_west.png (1792x1024)
-// Sector B (East): loomisville_sector_east.png (1792x1024)
-// Total Width: 3584, Total Height: 1024
+// Map Configuration - 4-Sector Mega Map (2x2 Grid)
+// Total World 3584 x 2048.
+// [0,0] is Bottom-Left (SW corner of SW sector).
 
-const IMAGE_HEIGHT = 1024;
 const IMAGE_WIDTH = 3584; // 1792 * 2
+const IMAGE_HEIGHT = 2048; // 1024 * 2
 
 // Initialize Leaflet Map
 const map = L.map('map', {
     crs: L.CRS.Simple,
-    minZoom: -1,
+    minZoom: -2,
     maxZoom: 2,
     zoomSnap: 0.5,
     zoomControl: false
 });
 
-// Define Bounds for Sectors
-// West is 0 to 1792
-// East is 1792 to 3584
-const boundsWest = [[0, 0], [IMAGE_HEIGHT, 1792]];
-const boundsEast = [[0, 1792], [IMAGE_HEIGHT, 3584]];
+// Define Bounds for 4 Sectors (2x2)
+// [Y, X] in Leaflet Simple.
+// SW Sector: Bottom-Left (0,0) -> (1024, 1792)
+const boundsSW = [[0, 0], [1024, 1792]];
+// SE Sector: Bottom-Right (0, 1792) -> (1024, 3584)
+const boundsSE = [[0, 1792], [1024, 3584]];
+// NW Sector: Top-Left (1024, 0) -> (2048, 1792)
+const boundsNW = [[1024, 0], [2048, 1792]];
+// NE Sector: Top-Right (1024, 1792) -> (2048, 3584)
+const boundsNE = [[1024, 1792], [2048, 3584]];
 
 // Add Overlays
-L.imageOverlay('loomisville_sector_west.png', boundsWest).addTo(map);
-L.imageOverlay('loomisville_sector_east.png', boundsEast).addTo(map);
+L.imageOverlay('loomisville_sec_sw.png', boundsSW).addTo(map);
+L.imageOverlay('loomisville_sec_se.png', boundsSE).addTo(map);
+L.imageOverlay('loomisville_sec_nw.png', boundsNW).addTo(map);
+L.imageOverlay('loomisville_sec_ne.png', boundsNE).addTo(map);
 
-// Center the map initially on the "Seam" - Mullins Square
-map.setView([512, 1000], 0);
-map.fitBounds(boundsWest); // Start focused on downtown
+// Center on Mullins Square (Ideally in NW sector)
+map.setView([1500, 900], -1);
 
-// LANDMARKS (Pixel Coordinates for Mega Map)
-// West Sector (0-1792)
-// East Sector (1792-3584)
-
+// LANDMARKS
 const LOCATIONS = {
     mullins: {
-        coords: [500, 896], // Center of West Sector (Mullins Square)
-        title: "Mullins Square", // RENAMED from Liam Square
-        desc: "The heart of Loomisville."
+        coords: [1536, 896], // Center of NW Sector (1024 + 512, 896)
+        title: "Mullins Square",
+        desc: "The heart of Loomisville (NW)."
     },
-    gabby: {
-        coords: [800, 400], // Top-Left of West Sector
-        title: "Gabby's Tavern",
-        desc: "Best juice in town."
+    shops: {
+        coords: [1500, 2700], // Center of NE Sector
+        title: "Shopping District",
+        desc: "Major commercial hub (NE)."
     },
     reed: {
-        coords: [300, 2500], // Bottom-Center of East Sector (1792 + 700ish)
+        coords: [512, 896], // Center of SW Sector
         title: "Reed's Rail Road",
-        desc: "Central Station."
+        desc: "Central Station (SW)."
     },
     cgcc: {
-        coords: [800, 3200], // Top-Right of East Sector (1792 + 1400ish)
+        coords: [512, 2700], // Center of SE Sector
         title: "Columbia Greene CC",
-        desc: "School of Architecture."
+        desc: "School of Architecture (SE)."
     }
 };
 
-// ADD MICRO-PARKING SPOTS
-// Adjusted for the new layout.
-// West Sector Parking (Offsets 0-1792)
+// ADD MICRO-PARKING SPOTS - 2x2 Grid
 const PARKING_ZONES = [
-    { center: [850, 1100], rows: 4, cols: 8, vertical: true },   // West Lot 1
-    { center: [250, 1200], rows: 3, cols: 12, vertical: false }, // West Lot 2
-    { center: [600, 300], rows: 6, cols: 6, vertical: false },   // West Lot 3
+    // NW Sector (Mullins)
+    { center: [1800, 300], rows: 5, cols: 8, vertical: false },
+    { center: [1300, 1500], rows: 4, cols: 10, vertical: false },
 
-    // East Sector Parking (Offsets > 1792)
-    { center: [400, 2700], rows: 2, cols: 15, vertical: false }, // East Station Parking
-    { center: [700, 3300], rows: 5, cols: 8, vertical: true }    // East College Parking
+    // NE Sector (Shops)
+    { center: [1600, 2200], rows: 6, cols: 12, vertical: true }, // Big Mall Lot
+    { center: [1900, 3200], rows: 4, cols: 8, vertical: false },
+
+    // SW Sector (Rail)
+    { center: [800, 600], rows: 3, cols: 20, vertical: false }, // Station Parking
+
+    // SE Sector (Campus)
+    { center: [300, 2500], rows: 8, cols: 8, vertical: true }   // Campus Main Lot
 ];
 
 const SPOT_SIZE_PX = 10;
