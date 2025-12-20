@@ -1,12 +1,12 @@
 // Initial Credentials - Using Hudson Amtrak Station
-// Adjusted center to the actual parking lot specifics
 const DEMO_LAT = 42.2538;
 const DEMO_LNG = -73.7968;
 
 const appState = {
     isParkingMode: false,
     map: null,
-    parkingLayer: null
+    parkingPolygons: [],
+    navigationLine: null
 };
 
 // Parking Spots Data (Fake Data)
@@ -25,20 +25,24 @@ const parkingSpots = [
 ];
 
 function initApp() {
-    // Initialize Leaflet Map
-    appState.map = L.map('map', {
-        zoomControl: false,
-        attributionControl: false
-    }).setView([DEMO_LAT, DEMO_LNG], 18); // Start slightly zoomed out
-
-    // Standard Map Tiles
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-        maxZoom: 19
-    }).addTo(appState.map);
+    // Standard Google Maps Setup
+    // "Cartoon buildings" = vector map with 3D buildings enabled by default + tilt
+    appState.map = new google.maps.Map(document.getElementById("map"), {
+        center: { lat: DEMO_LAT, lng: DEMO_LNG },
+        zoom: 18,
+        mapTypeId: "roadmap",
+        disableDefaultUI: true, // Clean "App" look
+        heading: 0,
+        tilt: 45, // Gives the 3D perspective
+        // mapId: "YOUR_MAP_ID_HERE" // Required for full WebGL 3D buildings
+    });
 
     // Initial Marker
-    L.marker([DEMO_LAT, DEMO_LNG]).addTo(appState.map)
-        .bindPopup('Hudson Amtrak Station').openPopup();
+    new google.maps.Marker({
+        position: { lat: DEMO_LAT, lng: DEMO_LNG },
+        map: appState.map,
+        title: "Hudson Amtrak Station"
+    });
 
     // Event Listeners
     document.getElementById('enable-parking-btn').addEventListener('click', enableParkingMode);
@@ -48,16 +52,12 @@ function initApp() {
 function enableParkingMode() {
     console.log("Activating Parking Mode...");
 
-    // 1. Zoom in and switch to "Satellite" feel
-    // Capping maxZoom at 19 to prevent grey tiles
-    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-        attribution: 'Tiles &copy; Esri',
-        maxZoom: 19
-    }).addTo(appState.map);
-
-    appState.map.flyTo([DEMO_LAT, DEMO_LNG], 19, {
-        animate: true,
-        duration: 1.5
+    // 1. Zoom in and Tilt for "Parking/Arrival" feel
+    appState.map.moveCamera({
+        center: { lat: DEMO_LAT, lng: DEMO_LNG },
+        zoom: 20,
+        tilt: 45,
+        heading: 0
     });
 
     // 2. UI Transitions
@@ -66,7 +66,7 @@ function enableParkingMode() {
     setTimeout(() => {
         document.getElementById('parking-panel').classList.remove('hidden');
         renderParkingSpots();
-    }, 1200);
+    }, 1000);
 }
 
 function renderParkingSpots() {
@@ -78,42 +78,54 @@ function renderParkingSpots() {
 
         const color = spot.available ? '#34C759' : '#FF3B30';
 
-        const bounds = [
-            [spotLat - boxSize, spotLng - boxSize],
-            [spotLat + boxSize, spotLng + boxSize]
+        // Define rectangle bounds relative to center
+        const coords = [
+            { lat: spotLat - boxSize, lng: spotLng - boxSize },
+            { lat: spotLat + boxSize, lng: spotLng - boxSize },
+            { lat: spotLat + boxSize, lng: spotLng + boxSize },
+            { lat: spotLat - boxSize, lng: spotLng + boxSize },
         ];
 
-        L.rectangle(bounds, {
-            color: color,
+        const polygon = new google.maps.Polygon({
+            paths: coords,
+            strokeColor: color,
+            strokeOpacity: 0.8,
+            strokeWeight: 2,
             fillColor: color,
-            fillOpacity: 0.6,
-            weight: 2
-        }).addTo(appState.map);
+            fillOpacity: 0.35,
+            map: appState.map
+        });
+
+        appState.parkingPolygons.push(polygon);
     });
 }
 
 function navigateToSpot() {
     // Simulate finding the best spot (spot #6 is our target)
     const targetSpot = parkingSpots.find(s => s.id === 6);
-    const start = [DEMO_LAT, DEMO_LNG]; // Entrance
-    const end = [DEMO_LAT + targetSpot.latOffset, DEMO_LNG + targetSpot.lngOffset];
+    const start = { lat: DEMO_LAT, lng: DEMO_LNG };
+    const end = { lat: DEMO_LAT + targetSpot.latOffset, lng: DEMO_LNG + targetSpot.lngOffset };
 
-    // Simple polyline for visual
-    const routeLine = [
+    // Simple path for visual
+    const navigationPath = [
         start,
-        [start[0], end[1]], // elbow turn
+        { lat: start.lat, lng: end.lng }, // elbow turn
         end
     ];
 
-    L.polyline(routeLine, {
-        color: '#007AFF',
-        weight: 5,
-        dashArray: '10, 10',
-        opacity: 0.8
-    }).addTo(appState.map);
+    appState.navigationLine = new google.maps.Polyline({
+        path: navigationPath,
+        geodesic: true,
+        strokeColor: "#007AFF",
+        strokeOpacity: 1.0,
+        strokeWeight: 5,
+        map: appState.map
+    });
 
-    appState.map.fitBounds(L.polyline(routeLine).getBounds(), { padding: [50, 50] });
+    // Adjust camera to fit the path
+    // Google Maps fitBounds doesn't respect tilt well, so we might just pan
+    appState.map.panTo(start);
 }
 
-// Start
-document.addEventListener('DOMContentLoaded', initApp);
+// Start (Wait for Google Maps API to load ideally, but simple window load works for prototype)
+window.onload = initApp;

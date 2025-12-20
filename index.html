@@ -16,8 +16,10 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 
-    <!-- Leaflet CSS for Map -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
+    <!-- Google Maps API -->
+    <!-- REPLACE 'YOUR_API_KEY_HERE' WITH YOUR ACTUAL GOOGLE MAPS API KEY -->
+    <script async src="https://maps.googleapis.com/maps/api/js?key=YOUR_API_KEY_HERE&libraries=places&v=weekly">
+    </script>
     <!-- Custom CSS -->
     <link rel="stylesheet" href="style.css">
 </head>
@@ -65,8 +67,6 @@
         </div>
     </div>
 
-    <!-- Leaflet JS -->
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
     <!-- App Logic -->
     <script src="app.js"></script>
 </body>
