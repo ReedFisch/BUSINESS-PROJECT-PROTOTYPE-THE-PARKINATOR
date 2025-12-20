@@ -1,6 +1,6 @@
 // Map Configuration - Static Image Image
-// New Widescreen High-Res Map
-const IMAGE_WIDTH = 1792;
+// Switched to Google Maps Style (Square 1024x1024)
+const IMAGE_WIDTH = 1024;
 const IMAGE_HEIGHT = 1024;
 const IMAGE_URL = 'loomisville_map.png';
 
@@ -19,30 +19,25 @@ const image = L.imageOverlay(IMAGE_URL, bounds).addTo(map);
 // Center the map initially
 map.fitBounds(bounds);
 
-// LANDMARKS (Pixel Coordinates)
-// Estimating positions on the 1792x1024 grid
-// [y, x] format (Leaflet Simple CRS usually treats [0,0] as bottom-left, but imageOverlay bounds might flip it depending on config.
-// Standard Leaflet ImageOverlay: [0,0] is top-left in pixel coords if we map it that way, but let's stick to the bounds [0,0] to [H,W].
-// So [0,0] is bottom-left. [1024, 1792] is top-right.
-
+// LANDMARKS (Pixel Coordinates for Square Map)
 const LOCATIONS = {
     liam: {
-        coords: [512, 896], // Center (The Park)
+        coords: [512, 350], // Center-Left (Green Park)
         title: "Liam Square",
         desc: "The heart of Loomisville."
     },
     reed: {
-        coords: [300, 1400], // Bottom-Right-ish (Train Station area)
+        coords: [512, 750], // Center-Right (Train Tracks)
         title: "Reed's Rail Road",
         desc: "Central Station."
     },
     gabby: {
-        coords: [400, 400], // Bottom-Left (Tavern/Town)
+        coords: [800, 200], // Top-Left (Commercial Block)
         title: "Gabby's Tavern",
         desc: "Best juice in town."
     },
     cgcc: {
-        coords: [800, 1500], // Top-Right (College)
+        coords: [200, 800], // Bottom-Right (Campus area)
         title: "Columbia Greene CC",
         desc: "School of Architecture."
     }
