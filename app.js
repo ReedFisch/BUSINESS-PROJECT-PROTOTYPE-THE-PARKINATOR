@@ -80,7 +80,7 @@ window.initMap = async function () {
 
     // LOAD DATABASE
     try {
-        const response = await fetch('parking_database.json');
+        const response = await fetch('parking_min.json');
         if (!response.ok) throw new Error("Local DB not found.");
         parkingDatabase = await response.json();
 
