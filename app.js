@@ -29,12 +29,15 @@ window.initMap = async function () {
 
     // SEARCH & PLACES SETUP
     const input = document.getElementById("pac-input");
+    const uiContainer = document.getElementById("top-left-container");
+    uiContainer.style.display = "flex"; // Make visible when map loads
+
     const { Autocomplete } = await google.maps.importLibrary("places");
     const autocomplete = new Autocomplete(input);
     autocomplete.bindTo("bounds", map);
 
-    // Push input to top-left of map
-    map.controls[google.maps.ControlPosition.TOP_LEFT].push(input);
+    // Push ENTIRE UI Container to Top-Left
+    map.controls[google.maps.ControlPosition.TOP_LEFT].push(uiContainer);
 
     let destinationMarker = null;
 
