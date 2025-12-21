@@ -25,6 +25,70 @@ html {
     overflow-y: auto;
     font-family: sans-serif;
     z-index: 100;
+    transition: background 0.3s, color 0.3s;
+}
+
+/* Dark Mode Classes */
+body.dark-mode #controls {
+    background: #2c2c2c;
+    color: #eee;
+}
+
+body.dark-mode #settings-panel {
+    background: #3a3a3a !important;
+    border-color: #555 !important;
+    color: #eee;
+}
+
+body.dark-mode h1,
+body.dark-mode button {
+    color: #eee !important;
+}
+
+/* Switch Styling */
+.switch {
+    position: relative;
+    display: inline-block;
+    width: 34px;
+    height: 20px;
+}
+
+.switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #ccc;
+    transition: .4s;
+    border-radius: 34px;
+}
+
+.slider:before {
+    position: absolute;
+    content: "";
+    height: 14px;
+    width: 14px;
+    left: 3px;
+    bottom: 3px;
+    background-color: white;
+    transition: .4s;
+    border-radius: 50%;
+}
+
+input:checked+.slider {
+    background-color: #1A73E8;
+}
+
+input:checked+.slider:before {
+    transform: translateX(14px);
 }
 
 /* Mobile Optimization */

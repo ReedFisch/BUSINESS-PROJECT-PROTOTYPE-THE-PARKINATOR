@@ -124,8 +124,19 @@ window.findSmartSpot = async (targetLoc) => {
     const freeMeters = parkingDatabase.filter(m => m.status === 'free' && m.latlng);
 
     // Helper to find best in radius
-    const findBestInRadius = (radiusMiles) => {
-        const radiusMeters = radiusMiles * 1609.34;
+    const findBestInRadius = (radiusFactor) => {
+        // radiusFactor is 0.5 or 1.0 (legacy values)
+        // If metric, we treat 0.5 as 0.8km (~0.5mi) roughly kept same for logic simplicity
+        // But strictly: 0.5 miles = 804 meters.
+
+        let limitMeters = radiusFactor * 1609.34; // Default miles logic
+        if (useMetric) {
+            // If metric mode, let's just interpret the factor roughly:
+            // 0.5 factor -> 800m
+            // 1.0 factor -> 1600m
+            limitMeters = (radiusFactor * 1600);
+        }
+
         let bestSpot = null;
         let bestPrice = Infinity;
 
