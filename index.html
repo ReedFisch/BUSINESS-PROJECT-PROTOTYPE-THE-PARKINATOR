@@ -4,7 +4,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>The Parkinator - Real World (v2.0)</title>
+    <title>Spot Scout (v2.1)</title>
+    <link rel="icon" type="image/png" href="spot_scout_logo.png">
     <link rel="stylesheet" href="style.css">
     <!-- Google Maps API -->
     <script>
@@ -18,9 +19,25 @@
 <body>
     <div id="map"></div>
     <div id="controls">
-        <h1>The Parkinator</h1>
+        <div style="display:flex; align-items:center; gap:10px; margin-bottom:5px;">
+            <img src="spot_scout_logo.png" alt="Spot Scout Logo" style="width:40px; height:40px; border-radius:8px;">
+            <h1 style="margin:0; font-size:24px;">Spot Scout</h1>
+        </div>
         <p>Los Angeles Live Parking Inventory</p>
         <div id="stats">Loading data...</div>
+
+        <div style="
+            margin-top: 15px; 
+            pt: 10px; 
+            border-top: 1px solid #eee; 
+            font-size: 9px; 
+            color: #888; 
+            text-align: center;
+            line-height: 1.4;
+        ">
+            <b>Loomis Inc</b><br>
+            Reed, Liam, and Gabby
+        </div>
     </div>
     <script src="app.js"></script>
 </body>
