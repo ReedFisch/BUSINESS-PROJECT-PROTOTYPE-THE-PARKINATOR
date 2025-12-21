@@ -348,168 +348,258 @@ function updateStats(meters, container) {
             cheapestMeterInView = m;
         }
     });
-    const cheapDisp = minPrice !== Infinity ? `$${minPrice.toFixed(2)}` : "--";
+    // Settings & State
+    let useMetric = false;
+    let isDarkMode = false;
+    let directionsService, directionsRenderer;
 
-    // Dynamic Dropdown for Reservations
-    let reservationHtml = '';
+    // Initialize Routing
+    window.addEventListener('load', async () => {
+        const { DirectionsService, DirectionsRenderer } = await google.maps.importLibrary("routes");
+        directionsService = new DirectionsService();
+        directionsRenderer = new DirectionsRenderer({
+            suppressMarkers: true,
+            polylineOptions: { strokeColor: "#1A73E8", strokeWeight: 5 }
+        });
+        directionsRenderer.setMap(map);
+    });
 
-    if (myReservations.length > 0) {
-        let listHtml = myReservations.map((res, index) => {
-            return `
-                <div style="
-                    background:white; border-radius:6px; padding:8px; margin:4px 0; 
-                    border-left: 4px solid #1A73E8;
-                ">
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
-                        <div style="font-size:11px;"><b>Space ${res.spaceid}</b></div>
-                        <div style="font-size:10px; color:#555;">${res.time}</div>
-                    </div>
-                    <div style="display:flex; gap:4px;">
-                        <button onclick="navigateToReservation(${index})" style="
-                            background:#1A73E8; color:white; border:none; border-radius:4px; padding:4px 6px; font-size:10px; cursor:pointer; flex:1;
-                        ">GO</button>
-                        <button onclick="endReservation(${index})" style="
-                            background:#d93025; color:white; border:none; border-radius:4px; padding:4px 6px; font-size:10px; cursor:pointer; flex:1;
-                        ">END & PAY</button>
-                    </div>
+    // Toggle Functions
+    window.toggleSettings = () => {
+        const panel = document.getElementById('settings-panel');
+        panel.style.display = (panel.style.display === 'none' || !panel.style.display) ? 'block' : 'none';
+    };
+
+    window.toggleTheme = () => {
+        isDarkMode = !isDarkMode;
+        document.body.classList.toggle('dark-mode', isDarkMode);
+        const styles = isDarkMode ? [
+            { elementType: "geometry", stylers: [{ color: "#242f3e" }] },
+            { elementType: "labels.text.stroke", stylers: [{ color: "#242f3e" }] },
+            { elementType: "labels.text.fill", stylers: [{ color: "#746855" }] },
+            { featureType: "road", elementType: "geometry", stylers: [{ color: "#38414e" }] },
+            { featureType: "road", elementType: "geometry.stroke", stylers: [{ color: "#212a37" }] },
+            { featureType: "water", elementType: "geometry", stylers: [{ color: "#17263c" }] }
+        ] : null;
+        if (map) map.setOptions({ styles });
+    };
+
+    window.toggleUnits = () => {
+        useMetric = !useMetric;
+        alert(`Units switched to ${useMetric ? "Metric" : "Imperial"}.`);
+    };
+
+    // SMART NAV & ROUTING
+    window.findSmartSpot = async (targetLoc, mode = 'cheapest') => {
+        if (!targetLoc) targetLoc = map.getCenter();
+        const { spherical } = await google.maps.importLibrary("geometry");
+
+        // Filter for FREE spots
+        const freeMeters = parkingDatabase.filter(m => m.status === 'free' && m.latlng);
+        let bestSpot = null;
+        let msg = "";
+
+        // MODE: CLOSEST
+        if (mode === 'closest') {
+            let minDist = Infinity;
+            freeMeters.forEach(meter => {
+                const lat = parseFloat(meter.latlng.latitude);
+                const lng = parseFloat(meter.latlng.longitude);
+                const dist = spherical.computeDistanceBetween(targetLoc, new google.maps.LatLng(lat, lng));
+                if (dist < minDist) { minDist = dist; bestSpot = meter; }
+            });
+            msg = "Found closest parking spot!";
+        }
+        // MODE: CHEAPEST (< 0.5mi / 0.8km)
+        else {
+            const radiusMeters = useMetric ? 800 : (0.5 * 1609.34);
+            let candidates = [];
+            freeMeters.forEach(meter => {
+                const lat = parseFloat(meter.latlng.latitude);
+                const lng = parseFloat(meter.latlng.longitude);
+                const dist = spherical.computeDistanceBetween(targetLoc, new google.maps.LatLng(lat, lng));
+                if (dist <= radiusMeters) candidates.push({ meter, dist });
+            });
+
+            if (candidates.length > 0) {
+                candidates.sort((a, b) => { // Sort by Price, then Distance
+                    const pDiff = a.meter.priceVal - b.meter.priceVal;
+                    return pDiff !== 0 ? pDiff : a.dist - b.dist;
+                });
+                bestSpot = candidates[0].meter;
+                msg = useMetric ? "Found cheapest spot within 800m!" : "Found cheapest spot within 0.5 miles!";
+            } else {
+                return window.findSmartSpot(targetLoc, 'closest'); // Fallback
+            }
+        }
+
+        if (bestSpot) {
+            const dest = { lat: parseFloat(bestSpot.latlng.latitude), lng: parseFloat(bestSpot.latlng.longitude) };
+            alert(`${msg}\nPrice: $${bestSpot.priceVal}/hr\nDrawing route...`);
+            map.panTo(dest);
+            map.setZoom(18);
+
+            // Draw Route
+            if (directionsService) {
+                directionsService.route({
+                    origin: targetLoc,
+                    destination: dest,
+                    travelMode: google.maps.TravelMode.DRIVING
+                }, (res, status) => {
+                    if (status === "OK") directionsRenderer.setDirections(res);
+                    else console.warn("Route failed: " + status);
+                });
+            }
+        } else {
+            alert("No parking available at all.");
+        }
+    };
+
+    window.navigateToCheapest = () => window.findSmartSpot(null, 'cheapest');
+    window.navigateToClosest = () => window.findSmartSpot(null, 'closest');
+
+    // Update Stats with New Buttons
+    function updateStats(meters, container) {
+        if (meters.length === 0) {
+            container.innerHTML = "No parking found.";
+            return;
+        }
+        const available = meters.filter(m => m.status === 'free');
+        let minPrice = Infinity;
+        available.forEach(m => { if (m.priceVal > 0 && m.priceVal < minPrice) minPrice = m.priceVal; });
+        const cheapDisp = minPrice !== Infinity ? `$${minPrice.toFixed(2)}` : "--";
+
+        let reservationHtml = '';
+        if (myReservations.length > 0) {
+            let listHtml = myReservations.map((res, index) => `
+            <div style="background:white; border-radius:6px; padding:6px; margin:4px 0; border-left:4px solid #1A73E8;">
+                <div style="font-size:10px;"><b>Space ${res.spaceid}</b></div>
+                <div style="display:flex; gap:4px; margin-top:4px;">
+                    <button onclick="navigateToReservation(${index})" style="background:#1A73E8; color:white; border:none; border-radius:3px; padding:2px 6px; font-size:9px;">GO</button>
+                    <button onclick="endReservation(${index})" style="background:#d93025; color:white; border:none; border-radius:3px; padding:2px 6px; font-size:9px;">END</button>
                 </div>
-            `;
-        }).join('');
+            </div>`).join('');
 
-        reservationHtml = `
-            <div style="margin-bottom:8px;">
-                 <details open style="
-                    background:#e8f0fe; border: 1px solid #1A73E8; border-radius:8px; overflow:hidden;
-                 ">
-                    <summary style="
-                        background:#d2e3fc; padding:8px; font-size:11px; text-transform:uppercase; color:#1967d2; font-weight:bold; cursor:pointer; outline:none;
-                    ">
-                        My Reservations (${myReservations.length}) ▼
-                    </summary>
-                    <div style="padding:4px; max-height:200px; overflow-y:auto;">
-                        ${listHtml}
-                    </div>
-                 </details>
-            </div>
-            
-             <a href="#" onclick="navigateToCheapest()" style="color:#1967d2; font-size:11px; display:block; text-align:center; margin-top:4px;">
-                Find Cheap Spot ($${minPrice.toFixed(2)})
-             </a>
-        `;
-    } else {
-        reservationHtml = `
-            <div style="background:#e8f0fe; padding:10px; border-radius:8px; text-align:center;">
-                 <div style="font-size:10px; text-transform:uppercase; color:#1967d2;">Cheapest Nearby</div>
-                 <div style="font-size:24px; font-weight:900; color:#1967d2;">${cheapDisp}</div>
-                 <button onclick="navigateToCheapest()" style="
-                    background: #1967d2; border:none; color:white; padding:6px 12px; border-radius:100px; cursor:pointer; font-weight:bold;
-                 ">Navigate to Meter</button>
-            </div>
-        `;
-    }
+            reservationHtml = `<details open style="background:#e8f0fe; border:1px solid #1A73E8; border-radius:8px; margin-bottom:8px;">
+            <summary style="background:#d2e3fc; padding:5px; font-size:10px; font-weight:bold; color:#1967d2;">My Reservations (${myReservations.length})</summary>
+            <div style="padding:5px; max-height:150px; overflow-y:auto;">${listHtml}</div>
+        </details>`;
+        }
 
-    container.innerHTML = `
+        // New Dual Buttons
+        reservationHtml += `
+        <div style="background:#f1f3f4; padding:10px; border-radius:8px; text-align:center;">
+             <div style="font-size:10px; color:#555; text-transform:uppercase; margin-bottom:5px;">Smart Find</div>
+             <div style="display:flex; gap:5px;">
+                  <button onclick="navigateToClosest()" style="flex:1; background:white; border:1px solid #dadce0; color:#3c4043; padding:8px 4px; border-radius:6px; cursor:pointer; font-weight:bold; font-size:11px;">📍 Closest</button>
+                  <button onclick="navigateToCheapest()" style="flex:1; background:#1967d2; border:none; color:white; padding:8px 4px; border-radius:6px; cursor:pointer; font-weight:bold; font-size:11px;">💲 Cheapest</button>
+             </div>
+             <div style="margin-top:4px; font-size:10px; color:#188038;">Best Price: <b>${cheapDisp}</b></div>
+        </div>
+    `;
+
+        container.innerHTML = `
         <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
             <div><small>VISIBLE</small> <b>${meters.length}</b></div>
             <div style="text-align:right;"><small>FREE</small> <b style="color:#34C759;">${available.length}</b></div>
         </div>
         ${reservationHtml}
     `;
-}
+    }
 
-function clearMarkers() {
-    allMarkers.forEach(marker => marker.map = null);
-    allMarkers = [];
-}
+    function clearMarkers() {
+        allMarkers.forEach(marker => marker.map = null);
+        allMarkers = [];
+    }
 
-function renderMarkers(data, AdvancedMarkerElement) {
-    const MAX_RENDER = 1000;
-    const renderData = data.slice(0, MAX_RENDER);
-    const zoom = map.getZoom();
+    function renderMarkers(data, AdvancedMarkerElement) {
+        const MAX_RENDER = 1000;
+        const renderData = data.slice(0, MAX_RENDER);
+        const zoom = map.getZoom();
 
-    const bigStarSvg = (color) => `
+        const bigStarSvg = (color) => `
         <svg width="40" height="40" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
              <path d="M12 17.27L18.18 21L16.54 13.97L22 9.24L14.81 8.63L12 2L9.19 8.63L2 9.24L7.46 13.97L5.82 21L12 17.27Z" 
                    fill="${color}" stroke="white" stroke-width="1.5"/>
         </svg>
     `;
 
-    renderData.forEach(meter => {
-        const lat = parseFloat(meter.latlng.latitude);
-        const lng = parseFloat(meter.latlng.longitude);
+        renderData.forEach(meter => {
+            const lat = parseFloat(meter.latlng.latitude);
+            const lng = parseFloat(meter.latlng.longitude);
 
-        let color = "#34C759";
-        let zIndex = 3;
+            let color = "#34C759";
+            let zIndex = 3;
 
-        let isMyReservation = myReservations.some(r => r.spaceid === meter.spaceid);
+            let isMyReservation = myReservations.some(r => r.spaceid === meter.spaceid);
 
-        if (meter.status === 'taken') {
-            color = "#EA4335";
-            zIndex = 1;
-        } else if (meter.status === 'soon') {
-            color = "#FBBC04";
-            zIndex = 2;
-        }
+            if (meter.status === 'taken') {
+                color = "#EA4335";
+                zIndex = 1;
+            } else if (meter.status === 'soon') {
+                color = "#FBBC04";
+                zIndex = 2;
+            }
 
-        if (isMyReservation) {
-            color = "#1A73E8"; // Blue Star
-            zIndex = 10;
-        }
+            if (isMyReservation) {
+                color = "#1A73E8"; // Blue Star
+                zIndex = 10;
+            }
 
-        let priceLabel = "";
-        // SHOW PRICE ONLY IF ZOOM >= 18 (and not hidden by reservation/taken)
-        const showPrice = (zoom >= PRICE_VISIBILITY_ZOOM);
+            let priceLabel = "";
+            // SHOW PRICE ONLY IF ZOOM >= 18 (and not hidden by reservation/taken)
+            const showPrice = (zoom >= PRICE_VISIBILITY_ZOOM);
 
-        if (showPrice && meter.priceVal > 0 && meter.status !== 'taken' && !isMyReservation) {
-            priceLabel = `<div style="
+            if (showPrice && meter.priceVal > 0 && meter.status !== 'taken' && !isMyReservation) {
+                priceLabel = `<div style="
                 background: white; padding: 1px 4px; border-radius: 4px; font-size: 10px; font-weight: bold; color: #333; 
                 box-shadow: 0 1px 2px rgba(0,0,0,0.2); margin-bottom: 2px; white-space: nowrap; position: absolute; bottom: ${isMyReservation ? '40px' : '14px'}; left: 50%; transform: translateX(-50%);
             ">$${meter.priceVal.toFixed(2)}</div>`;
-        }
+            }
 
-        const iconContainer = document.createElement('div');
-        iconContainer.style.position = 'relative';
+            const iconContainer = document.createElement('div');
+            iconContainer.style.position = 'relative';
 
-        if (isMyReservation) {
-            iconContainer.innerHTML = `
+            if (isMyReservation) {
+                iconContainer.innerHTML = `
                 ${priceLabel}
                 ${bigStarSvg(color)}
             `;
-        } else {
-            iconContainer.innerHTML = `
+            } else {
+                iconContainer.innerHTML = `
                 ${priceLabel}
                 <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:block; margin:auto;">
                     <circle cx="8" cy="8" r="6" fill="${color}" stroke="white" stroke-width="2"/>
                 </svg>
             `;
-        }
+            }
 
-        const marker = new AdvancedMarkerElement({
-            map: map,
-            position: { lat: lat, lng: lng },
-            title: `ID: ${meter.spaceid}`,
-            content: iconContainer,
-            zIndex: zIndex
-        });
+            const marker = new AdvancedMarkerElement({
+                map: map,
+                position: { lat: lat, lng: lng },
+                title: `ID: ${meter.spaceid}`,
+                content: iconContainer,
+                zIndex: zIndex
+            });
 
-        if ((meter.status === 'free' || meter.status === 'soon') && !isMyReservation) {
-            iconContainer.style.cursor = "pointer";
+            if ((meter.status === 'free' || meter.status === 'soon') && !isMyReservation) {
+                iconContainer.style.cursor = "pointer";
 
-            marker.addListener('click', () => {
-                const isSoon = (meter.status === 'soon');
-                let nowBtn = '';
+                marker.addListener('click', () => {
+                    const isSoon = (meter.status === 'soon');
+                    let nowBtn = '';
 
-                if (isSoon) {
-                    nowBtn = `<button disabled style="
+                    if (isSoon) {
+                        nowBtn = `<button disabled style="
                         background:#ccc; color:#666; border:none; padding:6px 12px; border-radius:4px; font-weight:bold; flex:1; cursor:not-allowed;
                      ">Occupied</button>`;
-                } else {
-                    nowBtn = `<button onclick="window.handleReserve('${meter.spaceid}', 'now')" style="
+                    } else {
+                        nowBtn = `<button onclick="window.handleReserve('${meter.spaceid}', 'now')" style="
                         background:#1A73E8; color:white; border:none; padding:6px 12px; border-radius:4px; cursor:pointer; font-weight:bold; flex:1;
                      ">Reserve Now</button>`;
-                }
+                    }
 
-                const contentStr = `
+                    const contentStr = `
                     <div style="font-family:Roboto,sans-serif; min-width:200px;">
                         <h3 style="margin:0 0 8px 0; font-size:16px;">Space ${meter.spaceid}</h3>
                         <p style="margin:0 0 8px 0; color:#555;">
@@ -525,25 +615,25 @@ function renderMarkers(data, AdvancedMarkerElement) {
                         ${isSoon ? `<div style='font-size:10px; color:#555; margin-top:8px;'>*Verifying time via API...</div>` : ''}
                     </div>
                 `;
-                activeInfoWindow.setContent(contentStr);
-                activeInfoWindow.open({
-                    anchor: marker,
-                    map,
+                    activeInfoWindow.setContent(contentStr);
+                    activeInfoWindow.open({
+                        anchor: marker,
+                        map,
+                    });
                 });
-            });
-        }
+            }
 
-        allMarkers.push(marker);
-    });
-}
+            allMarkers.push(marker);
+        });
+    }
 
 
-if (window.google && window.google.maps) {
-    initMap();
-} else {
-    window.addEventListener('load', () => {
-        if (window.google && window.google.maps) {
-            initMap();
-        }
-    });
-}
+    if (window.google && window.google.maps) {
+        initMap();
+    } else {
+        window.addEventListener('load', () => {
+            if (window.google && window.google.maps) {
+                initMap();
+            }
+        });
+    }

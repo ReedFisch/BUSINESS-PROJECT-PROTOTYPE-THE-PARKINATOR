@@ -21,25 +21,48 @@
         style="margin-top: 10px; margin-left:10px; width: 300px; padding: 10px; font-family: Roboto; font-size: 15px; border: 1px solid transparent; border-radius: 2px; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);">
     <div id="map"></div>
     <div id="controls">
-        <div style="display:flex; align-items:center; gap:10px; margin-bottom:5px;">
-            <img src="spot_scout_logo.png" alt="Loomis Park Logo" style="width:40px; height:40px; border-radius:8px;">
-            <h1 style="margin:0; font-size:24px;">Loomis Park</h1>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
+            <div style="display:flex; align-items:center; gap:10px;">
+                <img src="spot_scout_logo.png" alt="Loomis Park Logo"
+                    style="width:40px; height:40px; border-radius:8px;">
+                <h1 style="margin:0; font-size:24px;">Loomis Park</h1>
+            </div>
+            <button onclick="toggleSettings()"
+                style="background:none; border:none; font-size:24px; cursor:pointer; color:#555;">☰</button>
         </div>
         <p>Los Angeles Live Parking Inventory</p>
-        <div id="stats">Loading data...</div>
 
-        <div style="
-            margin-top: 15px; 
-            padding-top: 10px; 
-            border-top: 1px solid #eee; 
-            font-size: 9px; 
-            color: #888; 
-            text-align: center;
-            line-height: 1.4;
-        ">
-            <b>Loomis Inc</b><br>
-            Reed, Liam, and Gabby
+        <!-- Settings Panel -->
+        <div id="settings-panel"
+            style="display:none; margin-bottom:15px; background:#f9f9f9; padding:10px; border-radius:8px; border:1px solid #ddd;">
+            <div style="font-weight:bold; margin-bottom:10px; font-size:12px; text-transform:uppercase; color:#666;">
+                Settings</div>
+
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                <span>Dark Mode</span>
+                <label class="switch">
+                    <input type="checkbox" id="dark-mode-toggle" onchange="toggleTheme()">
+                    <span class="slider round"></span>
+                </label>
+            </div>
+
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                <span>Units (KM)</span>
+                <label class="switch">
+                    <input type="checkbox" id="units-toggle" onchange="toggleUnits()">
+                    <span class="slider round"></span>
+                </label>
+            </div>
+
+            <div
+                style="margin-top:10px; padding-top:10px; border-top:1px solid #ccc; font-size:10px; text-align:center; color:#777; line-height:1.4;">
+                <b>Loomis Inc</b><br>
+                Reed, Liam, and Gabby<br>
+                v3.2
+            </div>
         </div>
+
+        <div id="stats">Loading data...</div>
     </div>
     <script src="app.js"></script>
 </body>
