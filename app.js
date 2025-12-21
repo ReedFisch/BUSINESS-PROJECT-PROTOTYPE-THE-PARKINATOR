@@ -11,10 +11,21 @@ let allMarkers = [];
 let parkingDatabase = [];
 const ZOOM_THRESHOLD = 15;
 const PRICE_VISIBILITY_ZOOM = 16; // Approx. 0.5 mile view on mobile
-const PRICE_VISIBILITY_ZOOM = 16; // Approx. 0.5 mile view on mobile
 let activeInfoWindow = null;
-let destinationMarker = null; // Global for persistence
-window.searchDestination = null; // Global for persistence
+let destinationMarker = null;
+window.searchDestination = null;
+
+// State
+let isPremium = false;
+
+window.togglePremium = () => {
+    isPremium = !isPremium;
+    const msg = isPremium ? "🎉 Welcome to Loomis Premium!" : "Premium deactivated.";
+    alert(msg);
+    // Refresh map to update UI if needed
+    if (activeInfoWindow) activeInfoWindow.close();
+};
+
 
 // Track Multiple User Reservations
 let myReservations = []; // { spaceid, type, lat, lng, time, price, startTime }
@@ -203,6 +214,12 @@ async function getTimePlusHoursStr(hours) {
 
 // Reservation Logic
 window.handleReserve = async (spaceId, type) => {
+    // PAYWALL CHECK
+    if (!isPremium) {
+        alert("🔒 PREMIUM FEATURE\n\nReservations are exclusive to Loomis Premium members.\n\nPlease subscribe ($5/mo) in the Settings menu to reserve this spot.");
+        return;
+    }
+
     const meter = parkingDatabase.find(m => m.spaceid === spaceId);
     if (!meter) return;
 
