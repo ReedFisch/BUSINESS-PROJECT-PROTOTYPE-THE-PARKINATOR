@@ -278,3 +278,28 @@ body.dark-mode .gm-style-cc span,
 body.dark-mode button[title="Keyboard shortcuts"] {
     color: #444 !important;
 }
+
+/* InfoWindow Dark Mode (Popups) */
+body.dark-mode .gm-style-iw,
+body.dark-mode .gm-style-iw-c,
+body.dark-mode .gm-style-iw-d {
+    background-color: #2c2c2c !important;
+    color: #e0e0e0 !important;
+}
+
+body.dark-mode .gm-style-iw h3,
+body.dark-mode .gm-style-iw p,
+body.dark-mode .gm-style-iw strong,
+body.dark-mode .gm-style-iw div {
+    color: #e0e0e0 !important;
+}
+
+body.dark-mode .gm-style-iw-tc::after {
+    background: #2c2c2c !important;
+    /* The little arrow */
+}
+
+body.dark-mode .gm-style-iw button.gm-ui-hover-effect {
+    filter: invert(1);
+    /* Invert the X close button */
+}

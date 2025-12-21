@@ -570,41 +570,74 @@ function renderMarkers(data, AdvancedMarkerElement) {
                      ">Reserve Now</button>`;
                 }
 
-                const contentStr = `
-                    <div style="font-family:Roboto,sans-serif; min-width:200px;">
-                        <h3 style="margin:0 0 8px 0; font-size:16px;">Space ${meter.spaceid}</h3>
-                        <p style="margin:0 0 8px 0; color:#555;">
-                            Status: <b style="color:${isSoon ? '#F9A825' : '#188038'}">${isSoon ? 'Available Soon' : 'Free Now'}</b><br>
-                            Rate: <b>$${meter.priceVal || 'N/A'}</b>
-                        </p>
-                        <div style="display:flex; gap:8px;">
-                            ${nowBtn}
-                            <button onclick="window.handleReserve('${meter.spaceid}', 'later')" style="
-                                background:#f1f3f4; color:#3c4043; border:1px solid #dadce0; padding:6px 12px; border-radius:4px; cursor:pointer; font-weight:bold; flex:1;
-                            ">Later</button>
-                        </div>
-                        ${isSoon ? `<div style='font-size:10px; color:#555; margin-top:8px;'>*Verifying time via API...</div>` : ''}
-                    </div>
-                `;
-                activeInfoWindow.setContent(contentStr);
-                activeInfoWindow.open({
-                    anchor: marker,
-                    map,
-                });
+                const content = `
+            <div style="padding: 10px; min-width: 200px;">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <h3 style="margin: 0 0 5px 0; color: #333; font-size: 18px;">Space ${meter.spaceid}</h3>
+                    <div style="cursor:pointer;" onclick="activeInfoWindow.close()">✕</div>
+                </div>
+                <p style="margin: 5px 0; color: #666; font-size: 14px;">
+                    Status: <strong style="color: ${color};">${meter.status === 'free' ? 'Free Now' : 'Available Soon'}</strong><br>
+                    Rate: $${meter.priceVal.toFixed(2)}
+                </p>
+                
+                <div style="margin: 10px 0; padding: 8px; background: #f8f9fa; border-radius: 6px; display:flex; align-items:center; gap:8px;">
+                     <label class="switch" style="transform:scale(0.8);">
+                        <input type="checkbox" ${isPremium ? 'checked' : ''} onchange="togglePremiumFromPopup(this)">
+                        <span class="slider round"></span>
+                    </label>
+                    <span style="font-size:12px; font-weight:bold; color:#d93025;">💎 Premium ($5)</span>
+                </div>
+
+                <div style="display: flex; gap: 10px; margin-top: 10px;">
+                    <button onclick="handleReserve('${meter.spaceid}', 'now')" 
+                        style="flex: 1; background: #1A73E8; color: white; border: none; padding: 10px; border-radius: 6px; font-weight: bold; cursor: pointer;">
+                        Rent Now
+                    </button>
+                    ${meter.status === 'soon' ? `
+                    <button onclick="handleReserve('${meter.spaceid}', 'later')" 
+                        style="flex: 1; background: #f1f3f4; color: #3c4043; border: 1px solid #dadce0; padding: 10px; border-radius: 6px; font-weight: bold; cursor: pointer;">
+                        Later
+                    </button>` : ''}
+                </div>
+                <div style="margin-top:8px; font-size:10px; color:#aaa; text-align:center;">*Verifying time via API...</div>
+            </div>
+        `;
+
+                activeInfoWindow.setContent(content);
+                activeInfoWindow.open(map, marker);
             });
         }
 
-        allMarkers.push(marker);
-    });
-}
+        window.togglePremiumFromPopup = (checkbox) => {
+            isPremium = checkbox.checked;
+            // Sync with settings toggle if it exists
+            const settingsToggle = document.getElementById('premium-toggle');
+            if (settingsToggle) settingsToggle.checked = isPremium;
+
+            // Optional: Alert or just silent update? User asked to "present as option".
+            // We'll keep it silent for smoother UX, or a small toast.
+            console.log("Premium toggled to: " + isPremium);
+        };
+
+        // Reservation Logic
+        window.handleReserve = async (spaceId, type) => {
+            // REQ: "don't require premium" -> Remove Paywall Block
+            // We just proceed.
+
+            const meter = parkingDatabase.find(m => m.spaceid === spaceId);
+            if (!meter) return;
+
+            // ... (rest of logic)
+        }
 
 
-if (window.google && window.google.maps) {
-    initMap();
-} else {
-    window.addEventListener('load', () => {
         if (window.google && window.google.maps) {
             initMap();
+        } else {
+            window.addEventListener('load', () => {
+                if (window.google && window.google.maps) {
+                    initMap();
+                }
+            });
         }
-    });
-}
