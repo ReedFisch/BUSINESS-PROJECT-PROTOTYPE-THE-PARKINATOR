@@ -27,6 +27,52 @@ window.initMap = async function () {
         gestureHandling: "greedy", // ENABLE ONE-FINGER PAN ON MOBILE
     });
 
+    // SEARCH & PLACES SETUP
+    const input = document.getElementById("pac-input");
+    const { Autocomplete } = await google.maps.importLibrary("places");
+    const autocomplete = new Autocomplete(input);
+    autocomplete.bindTo("bounds", map);
+
+    // Push input to top-left of map
+    map.controls[google.maps.ControlPosition.TOP_LEFT].push(input);
+
+    let destinationMarker = null;
+
+    autocomplete.addListener("place_changed", () => {
+        const place = autocomplete.getPlace();
+        if (!place.geometry || !place.geometry.location) {
+            window.alert("No details available for input: '" + place.name + "'");
+            return;
+        }
+
+        if (place.geometry.viewport) {
+            map.fitBounds(place.geometry.viewport);
+        } else {
+            map.setCenter(place.geometry.location);
+            map.setZoom(17);
+        }
+
+        // Drop Destination Pin
+        if (destinationMarker) destinationMarker.map = null;
+
+        // Simple red pin for destination
+        const pinView = new google.maps.marker.PinElement({
+            background: "#DB4437",
+            borderColor: "#C5221F",
+            glyphColor: "white",
+        });
+
+        destinationMarker = new AdvancedMarkerElement({
+            map,
+            position: place.geometry.location,
+            content: pinView.element,
+            title: place.name,
+        });
+
+        // Trigger Smart Nav to this location
+        window.findSmartSpot(place.geometry.location);
+    });
+
     activeInfoWindow = new InfoWindow();
 
     const statsDiv = document.getElementById('stats');
@@ -65,17 +111,68 @@ window.initMap = async function () {
     map.addListener('idle', () => updateMap(AdvancedMarkerElement));
 };
 
-let cheapestMeterInView = null;
+// SMART NAV LOGIC
+window.findSmartSpot = async (targetLoc) => {
+    // If no specific target, use map center
+    if (!targetLoc) {
+        targetLoc = map.getCenter();
+    }
 
-window.navigateToCheapest = () => {
-    if (cheapestMeterInView) {
-        const lat = parseFloat(cheapestMeterInView.latlng.latitude);
-        const lng = parseFloat(cheapestMeterInView.latlng.longitude);
+    const { spherical } = await google.maps.importLibrary("geometry");
+
+    // Filter for FREE spots only
+    const freeMeters = parkingDatabase.filter(m => m.status === 'free' && m.latlng);
+
+    // Helper to find best in radius
+    const findBestInRadius = (radiusMiles) => {
+        const radiusMeters = radiusMiles * 1609.34;
+        let bestSpot = null;
+        let bestPrice = Infinity;
+
+        freeMeters.forEach(meter => {
+            const lat = parseFloat(meter.latlng.latitude);
+            const lng = parseFloat(meter.latlng.longitude);
+            const meterLoc = new google.maps.LatLng(lat, lng);
+
+            const dist = spherical.computeDistanceBetween(targetLoc, meterLoc);
+
+            if (dist <= radiusMeters) {
+                if (meter.priceVal <= bestPrice) {
+                    bestPrice = meter.priceVal;
+                    bestSpot = meter; // Simple "Cheapest" wins. Could combine distance/price.
+                }
+            }
+        });
+        return bestSpot;
+    };
+
+    // 1. Try 0.5 Miles
+    let spot = findBestInRadius(0.5);
+    let msg = "Found cheapest spot within 0.5 miles!";
+
+    // 2. Try 1.0 Miles
+    if (!spot) {
+        spot = findBestInRadius(1.0);
+        msg = "No spots in 0.5mi. Found cheapest within 1 mile.";
+    }
+
+    // 3. Result
+    if (spot) {
+        alert(`${msg}\n\nPrice: $${spot.priceVal}/hr\nNavigating there now...`);
+        const lat = parseFloat(spot.latlng.latitude);
+        const lng = parseFloat(spot.latlng.longitude);
         map.panTo({ lat, lng });
         map.setZoom(19);
     } else {
-        alert("No available parking in view!");
+        alert("Sorry! No parking available within 1 mile of this location.");
     }
+};
+
+let cheapestMeterInView = null; // Legacy but kept for "Visible" button
+
+window.navigateToCheapest = () => {
+    // Use Smart Nav based on CENTER
+    window.findSmartSpot(null);
 };
 
 window.navigateToReservation = (index) => {
