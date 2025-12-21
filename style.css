@@ -270,3 +270,11 @@ body.dark-mode .price-tag {
     color: #333 !important;
     border: none !important;
 }
+
+/* Map Footer Text Overrides (Ensure readability on light map) */
+body.dark-mode .gm-style-cc,
+body.dark-mode .gm-style-cc a,
+body.dark-mode .gm-style-cc span,
+body.dark-mode button[title="Keyboard shortcuts"] {
+    color: #444 !important;
+}
