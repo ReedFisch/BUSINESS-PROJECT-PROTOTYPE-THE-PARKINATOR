@@ -1,4 +1,9 @@
-/* The Parkinator - Real World Edition */
+/* The Parkinator - Real World Edition (v4) */
+window.onerror = function (msg, url, line) {
+    const el = document.getElementById('stats');
+    if (el) el.innerHTML = `<div style="background:#ffcccc;color:red;padding:10px;border-radius:8px;"><b>Error:</b> ${msg}<br>Line: ${line}</div>`;
+};
+console.log("App v4 starting...");
 /* Strategy: Local DB + Pricing + Multi-Reservations + WorldTimeAPI + Mobile UX */
 
 let map;
@@ -79,7 +84,7 @@ window.initMap = async function () {
     activeInfoWindow = new InfoWindow();
 
     const statsDiv = document.getElementById('stats');
-    statsDiv.textContent = "Loading local database...";
+    statsDiv.textContent = "Fetching data (v4)...";
 
     // LOAD DATABASE
     try {

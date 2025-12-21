@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Loomis Park (v3.0)</title>
+    <link rel="icon" type="image/png" href="spot_scout_logo.png">
+    <link rel="stylesheet" href="style.css">
+    <!-- Google Maps API -->
+    <script>
+        (g => { var h, a, k, p = "The Google Maps JavaScript API", c = "google", l = "importLibrary", q = "__ib__", m = document, b = window; b = b[c] || (b[c] = {}); var d = b.maps || (b.maps = {}), r = new Set, e = new URLSearchParams, u = () => h || (h = new Promise(async (f, n) => { await (a = m.createElement("script")); e.set("libraries", [...r] + ""); for (k in g) e.set(k.replace(/[A-Z]/g, t => "_" + t[0].toLowerCase()), g[k]); e.set("callback", c + ".maps." + q); a.src = `https://maps.${c}apis.com/maps/api/js?` + e; d[q] = f; a.onerror = () => h = n(Error(p + " could not load.")); a.nonce = m.querySelector("script[nonce]")?.nonce || ""; m.head.append(a) })); d[l] ? console.warn(p + " only loads once. Ignoring:", g) : d[l] = (f, ...n) => r.add(f) && u().then(() => d[l](f, ...n)) })({
+            key: "AIzaSyB4CowaWb0KtT9AQw4zN_3eOf4sKuds890",
+            v: "weekly",
+        });
+    </script>
+</head>
+
+<body>
+    <div id="top-left-container"
+        style="display:none; margin:10px; flex-direction:column; gap:10px; align-items:flex-start;">
+
+        <!-- Header: Menu & Logo -->
+        <div
+            style="background:white; padding:8px 12px; border-radius:12px; box-shadow:0 2px 6px rgba(0,0,0,0.3); display:flex; align-items:center; gap:12px;">
+            <button onclick="toggleSettings()"
+                style="background:none; border:none; font-size:24px; cursor:pointer; color:#555; padding:0;">☰</button>
+            <div style="width:1px; height:24px; background:#ddd;"></div>
+            <img src="spot_scout_logo.png" alt="Loomis Park Logo" style="width:32px; height:32px; border-radius:6px;">
+            <h1 style="margin:0; font-size:18px; color:#333;">Loomis Park</h1>
+        </div>
+
+        <!-- Settings Panel (Dropdown) -->
+        <div id="settings-panel"
+            style="display:none; background:white; padding:15px; border-radius:12px; box-shadow:0 4px 12px rgba(0,0,0,0.15); width:220px; border:1px solid #eee;">
+            <div style="font-weight:bold; margin-bottom:12px; font-size:11px; text-transform:uppercase; color:#888;">
+                Settings</div>
+
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                <span style="font-size:14px;">Dark Mode</span>
+                <label class="switch">
+                    <input type="checkbox" id="dark-mode-toggle" onchange="toggleTheme()">
+                    <span class="slider round"></span>
+                </label>
+            </div>
+
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+                <span style="font-size:14px;">Units (KM)</span>
+                <label class="switch">
+                    <input type="checkbox" id="units-toggle" onchange="toggleUnits()">
+                    <span class="slider round"></span>
+                </label>
+            </div>
+
+            <div
+                style="padding-top:12px; border-top:1px solid #eee; font-size:11px; text-align:center; color:#999; line-height:1.4;">
+                <b>Loomis Inc</b><br>
+                Reed, Liam, and Gabby<br>
+                v3.3
+            </div>
+        </div>
+
+        <!-- Search Bar -->
+        <input id="pac-input" type="text" placeholder="Search for a location..."
+            style="width: 300px; padding: 12px 20px; font-family: 'Roboto', sans-serif; font-size: 15px; border: none; border-radius: 30px; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3); outline:none;">
+    </div>
+
+    <div id="map"></div>
+
+    <!-- Bottom/Right Stats Panel Only -->
+    <div id="controls">
+        <div id="stats">Loading data...</div>
+    </div>
+    <script src="app.js?v=4"></script>
+</body>
+
+</html>
