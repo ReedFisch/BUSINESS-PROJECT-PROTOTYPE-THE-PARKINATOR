@@ -11,7 +11,11 @@ let allMarkers = [];
 let parkingDatabase = [];
 const ZOOM_THRESHOLD = 15;
 const PRICE_VISIBILITY_ZOOM = 16; // Approx. 0.5 mile view on mobile
+const PRICE_VISIBILITY_ZOOM = 16;
 let activeInfoWindow = null;
+let destinationMarker = null;
+window.searchDestination = null;
+let GlobalMarkerElement = null; // Fix for global access
 let destinationMarker = null;
 window.searchDestination = null;
 
@@ -33,6 +37,7 @@ let myReservations = []; // { spaceid, type, lat, lng, time, price, startTime }
 window.initMap = async function () {
     const { Map, InfoWindow } = await google.maps.importLibrary("maps");
     const { AdvancedMarkerElement } = await google.maps.importLibrary("marker");
+    GlobalMarkerElement = AdvancedMarkerElement;
 
     const position = { lat: 34.0522, lng: -118.2437 };
 
@@ -297,7 +302,9 @@ function updateMap(AdvancedMarkerElement) {
     });
 
     clearMarkers();
-    renderMarkers(visibleMeters, AdvancedMarkerElement);
+    clearMarkers();
+    const MarkerDef = AdvancedMarkerElement || GlobalMarkerElement;
+    renderMarkers(visibleMeters, MarkerDef);
     updateStats(visibleMeters, statsDiv);
 }
 
@@ -622,14 +629,40 @@ function renderMarkers(data, AdvancedMarkerElement) {
 
         // Reservation Logic
         window.handleReserve = async (spaceId, type) => {
-            // REQ: "don't require premium" -> Remove Paywall Block
-            // We just proceed.
+            // REQ: "don't require premium" -> No Paywall Check here.
 
             const meter = parkingDatabase.find(m => m.spaceid === spaceId);
             if (!meter) return;
 
-            // ... (rest of logic)
-        }
+            // Get time
+            let startTime = new Date();
+            try {
+                if (typeof getTrustedTime === 'function') {
+                    const t = await getTrustedTime();
+                    if (t) startTime = t;
+                }
+            } catch (e) { console.warn("Time sync failed, using local", e); }
+
+            const res = {
+                spaceid: meter.spaceid,
+                type: type,
+                lat: parseFloat(meter.latlng.latitude),
+                lng: parseFloat(meter.latlng.longitude),
+                price: meter.priceVal,
+                startTime: startTime
+            };
+
+            myReservations.push(res);
+            meter.status = 'taken'; // Update local logic
+
+            // Refresh Map
+            updateMap(GlobalMarkerElement);
+
+            // Close Window
+            if (activeInfoWindow) activeInfoWindow.close();
+
+            alert("Reservation Confirmed!\nSpace: " + spaceId);
+        };
 
 
         if (window.google && window.google.maps) {
