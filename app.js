@@ -97,12 +97,12 @@ window.initMap = async function () {
         // UPDATE UI (Don't auto-nav)
         const statsDiv = document.getElementById('stats');
         statsDiv.innerHTML = `
-            <div style="background:#f1f3f4; padding:12px; border-radius:8px; text-align:center; box-shadow:0 2px 4px rgba(0,0,0,0.1);">
-                 <div style="font-size:12px; color:#555; text-transform:uppercase; margin-bottom:4px;">Selected Location</div>
-                 <div style="font-weight:bold; font-size:16px; margin-bottom:12px; color:#1A73E8;">${place.name}</div>
+            <div class="smart-find-box">
+                 <div class="sf-label">Selected Location</div>
+                 <div class="sf-title">${place.name}</div>
                  <div style="display:flex; gap:8px;">
-                      <button onclick="navigateToClosest()" style="flex:1; background:white; border:1px solid #dadce0; color:#3c4043; padding:10px; border-radius:6px; cursor:pointer; font-weight:bold; font-size:12px;">📍 Closest</button>
-                      <button onclick="navigateToCheapest()" style="flex:1; background:#1967d2; border:none; color:white; padding:10px; border-radius:6px; cursor:pointer; font-weight:bold; font-size:12px;">💲 Cheapest</button>
+                      <button onclick="navigateToClosest()" class="nav-btn-light">📍 Closest</button>
+                      <button onclick="navigateToCheapest()" class="nav-btn-blue">💲 Cheapest</button>
                  </div>
                  <div style="margin-top:8px; font-size:10px; color:#666;">*Looking near pin</div>
             </div>
@@ -446,7 +446,7 @@ function updateStats(meters, container) {
     let reservationHtml = '';
     if (myReservations.length > 0) {
         let listHtml = myReservations.map((res, index) => `
-            <div style="background:white; border-radius:6px; padding:6px; margin:4px 0; border-left:4px solid #1A73E8;">
+            <div class="res-card">
                 <div style="font-size:10px;"><b>Space ${res.spaceid}</b></div>
                 <div style="display:flex; gap:4px; margin-top:4px;">
                     <button onclick="navigateToReservation(${index})" style="background:#1A73E8; color:white; border:none; border-radius:3px; padding:2px 6px; font-size:9px;">GO</button>
@@ -454,21 +454,21 @@ function updateStats(meters, container) {
                 </div>
             </div>`).join('');
 
-        reservationHtml = `<details open style="background:#e8f0fe; border:1px solid #1A73E8; border-radius:8px; margin-bottom:8px;">
-            <summary style="background:#d2e3fc; padding:5px; font-size:10px; font-weight:bold; color:#1967d2;">My Reservations (${myReservations.length})</summary>
+        reservationHtml = `<details open class="res-details">
+            <summary>My Reservations (${myReservations.length})</summary>
             <div style="padding:5px; max-height:150px; overflow-y:auto;">${listHtml}</div>
         </details>`;
     }
 
     // New Dual Buttons
     reservationHtml += `
-        <div style="background:#f1f3f4; padding:10px; border-radius:8px; text-align:center;">
-             <div style="font-size:10px; color:#555; text-transform:uppercase; margin-bottom:5px;">Smart Find</div>
+        <div class="smart-find-box">
+             <div class="sf-label">Smart Find</div>
              <div style="display:flex; gap:5px;">
-                  <button onclick="navigateToClosest()" style="flex:1; background:white; border:1px solid #dadce0; color:#3c4043; padding:8px 4px; border-radius:6px; cursor:pointer; font-weight:bold; font-size:11px;">📍 Closest</button>
-                  <button onclick="navigateToCheapest()" style="flex:1; background:#1967d2; border:none; color:white; padding:8px 4px; border-radius:6px; cursor:pointer; font-weight:bold; font-size:11px;">💲 Cheapest</button>
+                  <button onclick="navigateToClosest()" class="nav-btn-light">📍 Closest</button>
+                  <button onclick="navigateToCheapest()" class="nav-btn-blue">💲 Cheapest</button>
              </div>
-             <div style="margin-top:4px; font-size:10px; color:#188038;">Best Price: <b>${cheapDisp}</b></div>
+             <div class="sf-price">Best Price: <b>${cheapDisp}</b></div>
         </div>
     `;
 
