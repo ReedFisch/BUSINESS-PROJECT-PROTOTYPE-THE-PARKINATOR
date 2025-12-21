@@ -525,10 +525,7 @@ function renderMarkers(data, AdvancedMarkerElement) {
         const showPrice = (zoom >= PRICE_VISIBILITY_ZOOM);
 
         if (showPrice && meter.priceVal > 0 && meter.status !== 'taken' && !isMyReservation) {
-            priceLabel = `<div style="
-                background: white; padding: 1px 4px; border-radius: 4px; font-size: 10px; font-weight: bold; color: #333; 
-                box-shadow: 0 1px 2px rgba(0,0,0,0.2); margin-bottom: 2px; white-space: nowrap; position: absolute; bottom: ${isMyReservation ? '40px' : '14px'}; left: 50%; transform: translateX(-50%);
-            ">$${meter.priceVal.toFixed(2)}</div>`;
+            priceLabel = `<div class="price-tag" style="bottom: ${isMyReservation ? '40px' : '14px'};">$${meter.priceVal.toFixed(2)}</div>`;
         }
 
         const iconContainer = document.createElement('div');
