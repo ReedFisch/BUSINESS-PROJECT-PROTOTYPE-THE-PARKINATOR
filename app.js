@@ -11,7 +11,10 @@ let allMarkers = [];
 let parkingDatabase = [];
 const ZOOM_THRESHOLD = 15;
 const PRICE_VISIBILITY_ZOOM = 16; // Approx. 0.5 mile view on mobile
+const PRICE_VISIBILITY_ZOOM = 16; // Approx. 0.5 mile view on mobile
 let activeInfoWindow = null;
+let destinationMarker = null; // Global for persistence
+window.searchDestination = null; // Global for persistence
 
 // Track Multiple User Reservations
 let myReservations = []; // { spaceid, type, lat, lng, time, price, startTime }
@@ -44,7 +47,7 @@ window.initMap = async function () {
     // Push ENTIRE UI Container to Top-Left
     map.controls[google.maps.ControlPosition.TOP_LEFT].push(uiContainer);
 
-    let destinationMarker = null;
+
 
     autocomplete.addListener("place_changed", () => {
         const place = autocomplete.getPlace();
@@ -77,8 +80,22 @@ window.initMap = async function () {
             title: place.name,
         });
 
-        // Trigger Smart Nav to this location
-        window.findSmartSpot(place.geometry.location);
+        // PERSIST LOCATION
+        window.searchDestination = place.geometry.location;
+
+        // UPDATE UI (Don't auto-nav)
+        const statsDiv = document.getElementById('stats');
+        statsDiv.innerHTML = `
+            <div style="background:#f1f3f4; padding:12px; border-radius:8px; text-align:center; box-shadow:0 2px 4px rgba(0,0,0,0.1);">
+                 <div style="font-size:12px; color:#555; text-transform:uppercase; margin-bottom:4px;">Selected Location</div>
+                 <div style="font-weight:bold; font-size:16px; margin-bottom:12px; color:#1A73E8;">${place.name}</div>
+                 <div style="display:flex; gap:8px;">
+                      <button onclick="navigateToClosest()" style="flex:1; background:white; border:1px solid #dadce0; color:#3c4043; padding:10px; border-radius:6px; cursor:pointer; font-weight:bold; font-size:12px;">📍 Closest</button>
+                      <button onclick="navigateToCheapest()" style="flex:1; background:#1967d2; border:none; color:white; padding:10px; border-radius:6px; cursor:pointer; font-weight:bold; font-size:12px;">💲 Cheapest</button>
+                 </div>
+                 <div style="margin-top:8px; font-size:10px; color:#666;">*Looking near pin</div>
+            </div>
+        `;
     });
 
     activeInfoWindow = new InfoWindow();
@@ -311,7 +328,10 @@ window.toggleUnits = () => {
 
 // SMART NAV & ROUTING
 window.findSmartSpot = async (targetLoc, mode = 'cheapest') => {
-    if (!targetLoc) targetLoc = map.getCenter();
+    // If no specific target, use Persisted Search Pin OR Map Center
+    if (!targetLoc) {
+        targetLoc = window.searchDestination ? window.searchDestination : map.getCenter();
+    }
     const { spherical } = await google.maps.importLibrary("geometry");
 
     // Filter for FREE spots
