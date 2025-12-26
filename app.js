@@ -11,13 +11,11 @@ let allMarkers = [];
 let parkingDatabase = [];
 const ZOOM_THRESHOLD = 15;
 const PRICE_VISIBILITY_ZOOM = 16; // Approx. 0.5 mile view on mobile
-const PRICE_VISIBILITY_ZOOM = 16;
+
 let activeInfoWindow = null;
 let destinationMarker = null;
 window.searchDestination = null;
-let GlobalMarkerElement = null; // Fix for global access
-let destinationMarker = null;
-window.searchDestination = null;
+
 
 // State
 let isPremium = false;
@@ -218,64 +216,7 @@ async function getTimePlusHoursStr(hours) {
 }
 
 // Reservation Logic
-window.handleReserve = async (spaceId, type) => {
-    // PAYWALL CHECK
-    if (!isPremium) {
-        alert("🔒 PREMIUM FEATURE\n\nReservations are exclusive to Loomis Premium members.\n\nPlease subscribe ($5/mo) in the Settings menu to reserve this spot.");
-        return;
-    }
 
-    const meter = parkingDatabase.find(m => m.spaceid === spaceId);
-    if (!meter) return;
-
-    if (myReservations.some(r => r.spaceid === spaceId)) {
-        alert("You have already reserved this space!");
-        return;
-    }
-
-    let reserveTime = "Now";
-
-    if (type === 'now') {
-        alert(`SUCCESS!\n\nSpace ${spaceId} Reserved.\nRate: $${meter.priceVal}/hr`);
-        meter.status = 'reserved';
-    } else if (type === 'later') {
-        let defaultTime = "6:00 PM";
-        let promptMsg = "Enter reservation time:";
-
-        if (meter.status === 'soon') {
-            const minTimeStr = await getTimePlusHoursStr(2);
-            defaultTime = minTimeStr;
-            promptMsg = `Note: Spot uses Trusted API Time.\nEarliest Reservation: ${minTimeStr}\n\nEnter time:`;
-        } else {
-            const currentTimeStr = await getTimePlusHoursStr(0);
-            defaultTime = currentTimeStr;
-        }
-
-        const time = prompt(promptMsg, defaultTime);
-        if (time) {
-            reserveTime = time;
-            alert(`CONFIRMED.\n\nSpace ${spaceId} reserved for ${time}.`);
-            meter.status = 'scheduled';
-        } else {
-            return;
-        }
-    }
-
-    myReservations.push({
-        spaceid: spaceId,
-        type: type,
-        time: reserveTime,
-        price: meter.priceVal,
-        lat: parseFloat(meter.latlng.latitude),
-        lng: parseFloat(meter.latlng.longitude)
-    });
-
-    activeInfoWindow.close();
-
-    google.maps.importLibrary("marker").then(({ AdvancedMarkerElement }) => {
-        updateMap(AdvancedMarkerElement);
-    });
-};
 
 
 function updateMap(AdvancedMarkerElement) {
@@ -302,7 +243,7 @@ function updateMap(AdvancedMarkerElement) {
     });
 
     clearMarkers();
-    clearMarkers();
+
     const MarkerDef = AdvancedMarkerElement || GlobalMarkerElement;
     renderMarkers(visibleMeters, MarkerDef);
     updateStats(visibleMeters, statsDiv);
@@ -615,62 +556,66 @@ function renderMarkers(data, AdvancedMarkerElement) {
                 activeInfoWindow.open(map, marker);
             });
         }
+    });
+}
 
-        window.togglePremiumFromPopup = (checkbox) => {
-            isPremium = checkbox.checked;
-            // Sync with settings toggle if it exists
-            const settingsToggle = document.getElementById('premium-toggle');
-            if (settingsToggle) settingsToggle.checked = isPremium;
+window.togglePremiumFromPopup = (checkbox) => {
+    isPremium = checkbox.checked;
+    // Sync with settings toggle if it exists
+    const settingsToggle = document.getElementById('premium-toggle');
+    if (settingsToggle) settingsToggle.checked = isPremium;
 
-            // Optional: Alert or just silent update? User asked to "present as option".
-            // We'll keep it silent for smoother UX, or a small toast.
-            console.log("Premium toggled to: " + isPremium);
-        };
+    // Optional: Alert or just silent update? User asked to "present as option".
+    // We'll keep it silent for smoother UX, or a small toast.
+    console.log("Premium toggled to: " + isPremium);
+};
 
-        // Reservation Logic
-        window.handleReserve = async (spaceId, type) => {
-            // REQ: "don't require premium" -> No Paywall Check here.
+// Reservation Logic
+window.handleReserve = async (spaceId, type) => {
+    // REQ: "don't require premium" -> No Paywall Check here.
 
-            const meter = parkingDatabase.find(m => m.spaceid === spaceId);
-            if (!meter) return;
+    const meter = parkingDatabase.find(m => m.spaceid === spaceId);
+    if (!meter) return;
 
-            // Get time
-            let startTime = new Date();
-            try {
-                if (typeof getTrustedTime === 'function') {
-                    const t = await getTrustedTime();
-                    if (t) startTime = t;
-                }
-            } catch (e) { console.warn("Time sync failed, using local", e); }
+    // Get time
+    let startTime = new Date();
+    try {
+        if (typeof getTrustedTime === 'function') {
+            const t = await getTrustedTime();
+            if (t) startTime = t;
+        }
+    } catch (e) {
+        console.warn("Time sync failed, using local", e);
+    }
 
-            const res = {
-                spaceid: meter.spaceid,
-                type: type,
-                lat: parseFloat(meter.latlng.latitude),
-                lng: parseFloat(meter.latlng.longitude),
-                price: meter.priceVal,
-                startTime: startTime
-            };
+    const res = {
+        spaceid: meter.spaceid,
+        type: type,
+        lat: parseFloat(meter.latlng.latitude),
+        lng: parseFloat(meter.latlng.longitude),
+        price: meter.priceVal,
+        startTime: startTime
+    };
 
-            myReservations.push(res);
-            meter.status = 'taken'; // Update local logic
+    myReservations.push(res);
+    meter.status = 'taken'; // Update local logic
 
-            // Refresh Map
-            updateMap(GlobalMarkerElement);
+    // Refresh Map
+    updateMap(GlobalMarkerElement);
 
-            // Close Window
-            if (activeInfoWindow) activeInfoWindow.close();
+    // Close Window
+    if (activeInfoWindow) activeInfoWindow.close();
 
-            alert("Reservation Confirmed!\nSpace: " + spaceId);
-        };
+    alert("Reservation Confirmed!\nSpace: " + spaceId);
+};
 
 
+if (window.google && window.google.maps) {
+    initMap();
+} else {
+    window.addEventListener('load', () => {
         if (window.google && window.google.maps) {
             initMap();
-        } else {
-            window.addEventListener('load', () => {
-                if (window.google && window.google.maps) {
-                    initMap();
-                }
-            });
         }
+    });
+}
