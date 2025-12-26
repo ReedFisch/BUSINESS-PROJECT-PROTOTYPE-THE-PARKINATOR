@@ -17,11 +17,37 @@ let destinationMarker = null;
 window.searchDestination = null;
 
 
-// State
-let isPremium = false;
+// State - Load from localStorage
+let isPremium = localStorage.getItem('loomis_premium') === 'true';
+
+// Initialize premium UI on load
+window.addEventListener('load', () => {
+    updatePremiumUI();
+});
+
+function updatePremiumUI() {
+    const statusEl = document.getElementById('premium-status');
+    const btnEl = document.getElementById('premium-btn');
+    const toggleEl = document.getElementById('demo-premium-toggle');
+
+    if (statusEl) {
+        statusEl.innerHTML = isPremium
+            ? 'Status: <b style="color:#d93025;">Premium 💎</b>'
+            : 'Status: <b>Free</b>';
+    }
+    if (btnEl) {
+        btnEl.innerText = isPremium ? '✓ Premium Active' : '💎 Upgrade ($5)';
+        btnEl.style.background = isPremium ? '#34a853' : '#fbbc04';
+    }
+    if (toggleEl) {
+        toggleEl.checked = isPremium;
+    }
+}
 
 window.togglePremium = () => {
     isPremium = !isPremium;
+    localStorage.setItem('loomis_premium', isPremium.toString());
+    updatePremiumUI();
     const msg = isPremium ? "🎉 Welcome to Loomis Premium!" : "Premium deactivated.";
     alert(msg);
     // Refresh map to update UI if needed
@@ -501,6 +527,8 @@ function renderMarkers(data, AdvancedMarkerElement) {
             zIndex: zIndex
         });
 
+        allMarkers.push(marker);
+
         if ((meter.status === 'free' || meter.status === 'soon') && !isMyReservation) {
             iconContainer.style.cursor = "pointer";
 
@@ -528,14 +556,6 @@ function renderMarkers(data, AdvancedMarkerElement) {
                     Status: <strong style="color: ${color};">${meter.status === 'free' ? 'Free Now' : 'Available Soon'}</strong><br>
                     Rate: $${meter.priceVal.toFixed(2)}
                 </p>
-                
-                <div style="margin: 10px 0; padding: 8px; background: #f8f9fa; border-radius: 6px; display:flex; align-items:center; gap:8px;">
-                     <label class="switch" style="transform:scale(0.8);">
-                        <input type="checkbox" ${isPremium ? 'checked' : ''} onchange="togglePremiumFromPopup(this)">
-                        <span class="slider round"></span>
-                    </label>
-                    <span style="font-size:12px; font-weight:bold; color:#d93025;">💎 Premium ($5)</span>
-                </div>
 
                 <div style="display: flex; gap: 10px; margin-top: 10px;">
                     <button onclick="handleReserve('${meter.spaceid}', 'now')" 
@@ -559,23 +579,98 @@ function renderMarkers(data, AdvancedMarkerElement) {
     });
 }
 
-window.togglePremiumFromPopup = (checkbox) => {
-    isPremium = checkbox.checked;
-    // Sync with settings toggle if it exists
-    const settingsToggle = document.getElementById('premium-toggle');
-    if (settingsToggle) settingsToggle.checked = isPremium;
+window.upgradePremium = () => {
+    if (isPremium) {
+        // Show manage subscription options
+        const action = confirm("💎 Premium Member\n\nYou're enjoying Premium benefits!\n\nClick OK to cancel subscription.");
+        if (action) {
+            isPremium = false;
+            localStorage.setItem('loomis_premium', 'false');
+            updatePremiumUI();
+            alert("Subscription cancelled. You can re-subscribe anytime!");
+        }
+        return;
+    }
 
-    // Optional: Alert or just silent update? User asked to "present as option".
-    // We'll keep it silent for smoother UX, or a small toast.
-    console.log("Premium toggled to: " + isPremium);
+    // Show pay popup
+    showPayPopup();
 };
+
+function showPayPopup() {
+    // Create overlay
+    const overlay = document.createElement('div');
+    overlay.id = 'pay-popup-overlay';
+    overlay.style.cssText = `
+        position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+        background: rgba(0,0,0,0.6); z-index: 9999;
+        display: flex; align-items: center; justify-content: center;
+    `;
+
+    // Create popup
+    overlay.innerHTML = `
+        <div style="
+            background: white; border-radius: 16px; padding: 24px; max-width: 320px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3); text-align: center;
+        ">
+            <div style="font-size: 48px; margin-bottom: 12px;">💎</div>
+            <h2 style="margin: 0 0 8px; color: #333; font-size: 22px;">Upgrade to Premium</h2>
+            <p style="color: #666; font-size: 14px; margin: 0 0 16px;">
+                Unlock future reservations and "Available Soon" spots!
+            </p>
+            <div style="
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                color: white; padding: 12px; border-radius: 8px; margin-bottom: 16px;
+            ">
+                <div style="font-size: 28px; font-weight: bold;">$5<span style="font-size: 14px;">/month</span></div>
+            </div>
+            <div style="display: flex; gap: 10px;">
+                <button id="pay-cancel-btn" style="
+                    flex: 1; padding: 12px; border: 1px solid #ddd; background: #f5f5f5;
+                    border-radius: 8px; font-size: 14px; cursor: pointer;
+                ">Cancel</button>
+                <button id="pay-yes-btn" style="
+                    flex: 1; padding: 12px; border: none; background: #34a853;
+                    color: white; border-radius: 8px; font-size: 14px; font-weight: bold; cursor: pointer;
+                ">Yes, Subscribe!</button>
+            </div>
+            <p style="color: #999; font-size: 11px; margin: 12px 0 0;">(DEMO: Click Yes to activate)</p>
+        </div>
+    `;
+
+    document.body.appendChild(overlay);
+
+    // Button handlers
+    document.getElementById('pay-yes-btn').onclick = () => {
+        isPremium = true;
+        localStorage.setItem('loomis_premium', 'true');
+        updatePremiumUI();
+        overlay.remove();
+        alert("🎉 Welcome to Loomis Premium!\n\nYou can now reserve spots for later and book \"Available Soon\" spaces!");
+    };
+
+    document.getElementById('pay-cancel-btn').onclick = () => {
+        overlay.remove();
+    };
+
+    // Click outside to close
+    overlay.onclick = (e) => {
+        if (e.target === overlay) overlay.remove();
+    };
+}
 
 // Reservation Logic
 window.handleReserve = async (spaceId, type) => {
-    // REQ: "don't require premium" -> No Paywall Check here.
-
     const meter = parkingDatabase.find(m => m.spaceid === spaceId);
     if (!meter) return;
+
+    // ENFORCE PREMIUM for "Later" or "Soon" spots
+    // If reserving "Now" on a "Free" spot -> Free for everyone (per previous understanding, but user said "future scheduling" needs premium)
+    // User request: "change the premium so it does not allow you to reserve later or available soon without it"
+
+    if ((type === 'later' || meter.status === 'soon') && !isPremium) {
+        showPremiumRequiredPopup();
+        return;
+    }
 
     // Get time
     let startTime = new Date();
@@ -608,6 +703,61 @@ window.handleReserve = async (spaceId, type) => {
 
     alert("Reservation Confirmed!\nSpace: " + spaceId);
 };
+
+function showPremiumRequiredPopup() {
+    // Create overlay
+    const overlay = document.createElement('div');
+    overlay.id = 'premium-required-overlay';
+    overlay.style.cssText = `
+        position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+        background: rgba(0,0,0,0.6); z-index: 9999;
+        display: flex; align-items: center; justify-content: center;
+    `;
+
+    overlay.innerHTML = `
+        <div style="
+            background: white; border-radius: 16px; padding: 24px; max-width: 320px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3); text-align: center;
+        ">
+            <div style="font-size: 48px; margin-bottom: 12px;">🔒</div>
+            <h2 style="margin: 0 0 8px; color: #333; font-size: 20px;">Premium Feature</h2>
+            <p style="color: #666; font-size: 14px; margin: 0 0 16px; line-height: 1.5;">
+                Reserving <b>"Available Soon"</b> spots and <b>future bookings</b> requires a Premium subscription.
+            </p>
+            <div style="
+                background: #fff3cd; border: 1px solid #ffc107; padding: 10px;
+                border-radius: 8px; margin-bottom: 16px; font-size: 13px; color: #856404;
+            ">
+                💡 Subscribe to Premium for just <b>$5/month</b>
+            </div>
+            <div style="display: flex; gap: 10px;">
+                <button id="prem-req-cancel" style="
+                    flex: 1; padding: 12px; border: 1px solid #ddd; background: #f5f5f5;
+                    border-radius: 8px; font-size: 14px; cursor: pointer;
+                ">Not Now</button>
+                <button id="prem-req-subscribe" style="
+                    flex: 1; padding: 12px; border: none; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                    color: white; border-radius: 8px; font-size: 14px; font-weight: bold; cursor: pointer;
+                ">Subscribe 💎</button>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(overlay);
+
+    document.getElementById('prem-req-subscribe').onclick = () => {
+        overlay.remove();
+        showPayPopup();
+    };
+
+    document.getElementById('prem-req-cancel').onclick = () => {
+        overlay.remove();
+    };
+
+    overlay.onclick = (e) => {
+        if (e.target === overlay) overlay.remove();
+    };
+}
 
 
 if (window.google && window.google.maps) {
