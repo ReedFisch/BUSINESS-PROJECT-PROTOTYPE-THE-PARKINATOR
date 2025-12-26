@@ -28,7 +28,7 @@ window.addEventListener('load', () => {
 function updatePremiumUI() {
     const statusEl = document.getElementById('premium-status');
     const btnEl = document.getElementById('premium-btn');
-    const toggleEl = document.getElementById('demo-premium-toggle');
+
 
     if (statusEl) {
         statusEl.innerHTML = isPremium
@@ -39,20 +39,10 @@ function updatePremiumUI() {
         btnEl.innerText = isPremium ? '✓ Premium Active' : '💎 Upgrade ($5)';
         btnEl.style.background = isPremium ? '#34a853' : '#fbbc04';
     }
-    if (toggleEl) {
-        toggleEl.checked = isPremium;
-    }
+
 }
 
-window.togglePremium = () => {
-    isPremium = !isPremium;
-    localStorage.setItem('loomis_premium', isPremium.toString());
-    updatePremiumUI();
-    const msg = isPremium ? "🎉 Welcome to Loomis Premium!" : "Premium deactivated.";
-    alert(msg);
-    // Refresh map to update UI if needed
-    if (activeInfoWindow) activeInfoWindow.close();
-};
+
 
 
 // Track Multiple User Reservations
@@ -226,7 +216,7 @@ window.endReservation = (index) => {
 // Trusted Time API
 async function getTrustedTime() {
     try {
-        const response = await fetch("http://worldtimeapi.org/api/timezone/America/Los_Angeles");
+        const response = await fetch("https://worldtimeapi.org/api/timezone/America/Los_Angeles");
         const data = await response.json();
         return new Date(data.datetime);
     } catch (e) {
@@ -260,20 +250,14 @@ window.showTimePickerPopup = async (spaceId, priceVal) => {
     }
 
     // Calculate minimum time (2 hours from now)
-    const minTime = new Date(currentTime);
-    minTime.setHours(minTime.getHours() + 2);
-    minTime.setMinutes(0); // Round to start of hour
+    // Calculate minimum time (2 hours from now)
+    const minTime = new Date(currentTime.getTime() + (2 * 60 * 60 * 1000));
 
-    // Generate time options (min 2hrs to 12hrs in future)
-    let timeOptions = '';
-    for (let h = 2; h <= 12; h++) {
-        const optTime = new Date(currentTime);
-        optTime.setHours(optTime.getHours() + h);
-        optTime.setMinutes(0);
-        const timeStr = optTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-        const dateStr = optTime.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
-        timeOptions += `<option value="${h}">${timeStr} (${dateStr}) - ${h}hr from now</option>`;
-    }
+    // Format minTime for datetime-local input (YYYY-MM-DDTHH:mm)
+    // Adjust for timezone offset to ensure local time is correct in input
+    const tzOffset = currentTime.getTimezoneOffset() * 60000;
+    const minLocIso = new Date(minTime.getTime() - tzOffset).toISOString().slice(0, 16);
+    const defaultsIso = new Date(minTime.getTime() - tzOffset).toISOString().slice(0, 16);
 
     // Create overlay
     const overlay = document.createElement('div');
@@ -307,16 +291,14 @@ window.showTimePickerPopup = async (spaceId, priceVal) => {
             </div>
             
             <div style="text-align: left; margin-bottom: 12px;">
-                <label style="font-size: 13px; color: #555; font-weight: bold;">Select Reservation Time:</label>
-                <select id="time-select" style="
+                <label style="font-size: 13px; color: #555; font-weight: bold;">Select Date & Time:</label>
+                <input type="datetime-local" id="time-input" value="${defaultsIso}" min="${minLocIso}" style="
                     width: 100%; padding: 12px; margin-top: 6px;
                     border: 2px solid #1A73E8; border-radius: 8px;
-                    font-size: 14px; cursor: pointer;
+                    font-size: 16px; cursor: pointer; font-family: sans-serif;
                 ">
-                    ${timeOptions}
-                </select>
                 <div style="font-size: 11px; color: #888; margin-top: 4px;">
-                    ⏰ Minimum: ${minTimeDisplay} (2 hours from now)
+                    ⏰ Earliest allowed: ${minTimeDisplay} (Today)
                 </div>
             </div>
             
@@ -337,10 +319,32 @@ window.showTimePickerPopup = async (spaceId, priceVal) => {
 
     // Button handlers
     document.getElementById('time-confirm-btn').onclick = async () => {
-        const hoursFromNow = parseInt(document.getElementById('time-select').value);
-        const reservationTime = new Date(currentTime);
-        reservationTime.setHours(reservationTime.getHours() + hoursFromNow);
-        reservationTime.setMinutes(0);
+        const inputVal = document.getElementById('time-input').value;
+        if (!inputVal) {
+            alert("Please select a valid date and time.");
+            return;
+        }
+
+        const selectedTime = new Date(inputVal);
+
+        // Validation: Verify time is at least 2 hours in future (allow 1 min buffer for UI latency)
+        // We use the same 'minTime' reference we calculated earlier
+        if (selectedTime < minTime) {
+            alert(`⚠️ Invalid Time.\n\nReservations must be at least 2 hours in advance.\nEarliest time: ${minTimeDisplay}`);
+            return;
+        }
+
+        // PREMIUM CHECK for "Future" or "Available Soon" reservations
+        // If user is NOT premium, block them here (Tease-then-Block pattern)
+        // We know it's a future reservation because of the 2-hour minimum
+        if (!isPremium) {
+            overlay.remove();
+            showPremiumRequiredPopup();
+            return;
+        }
+
+        const hoursFromNow = (selectedTime - currentTime) / (1000 * 60 * 60);
+        const reservationTime = selectedTime;
 
         overlay.remove();
 
@@ -680,15 +684,15 @@ function renderMarkers(data, AdvancedMarkerElement) {
                 let buttonsHtml = '';
 
                 if (isSoon) {
-                    // Available Soon spots - ONLY show Later button (premium required)
+                    // Available Soon spots - Show Later button for EVERYONE (Tease feature), block in picker if not premium
                     buttonsHtml = `
-                        <button onclick="handleReserve('${meter.spaceid}', 'later')" 
+                        <button onclick="showTimePickerPopup('${meter.spaceid}', ${meter.priceVal})" 
                             style="flex: 1; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; padding: 10px; border-radius: 6px; font-weight: bold; cursor: pointer;">
                             💎 Reserve Later
                         </button>
                     `;
                 } else {
-                    // Free spots - show time picker button
+                    // Free spots - show time picker button (uses Time API)
                     buttonsHtml = `
                         <button onclick="showTimePickerPopup('${meter.spaceid}', ${meter.priceVal})" 
                             style="flex: 1; background: #1A73E8; color: white; border: none; padding: 10px; border-radius: 6px; font-weight: bold; cursor: pointer;">
@@ -788,7 +792,7 @@ function showPayPopup() {
         localStorage.setItem('loomis_premium', 'true');
         updatePremiumUI();
         overlay.remove();
-        alert("🎉 Welcome to Loomis Premium!\n\nYou can now reserve spots for later and book \"Available Soon\" spaces!");
+        showSuccessPopup();
     };
 
     document.getElementById('pay-cancel-btn').onclick = () => {
@@ -796,6 +800,53 @@ function showPayPopup() {
     };
 
     // Click outside to close
+    overlay.onclick = (e) => {
+        if (e.target === overlay) overlay.remove();
+    };
+}
+
+function showSuccessPopup() {
+    // Create overlay
+    const overlay = document.createElement('div');
+    overlay.id = 'success-popup-overlay';
+    overlay.style.cssText = `
+        position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+        background: rgba(0,0,0,0.6); z-index: 9999;
+        display: flex; align-items: center; justify-content: center;
+    `;
+
+    overlay.innerHTML = `
+        <div style="
+            background: white; border-radius: 16px; padding: 32px; max-width: 320px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3); text-align: center;
+            animation: popIn 0.3s ease-out;
+        ">
+            <div style="font-size: 64px; margin-bottom: 16px;">🎉</div>
+            <h2 style="margin: 0 0 8px; color: #34a853; font-size: 24px;">Welcome to Premium!</h2>
+            <p style="color: #666; font-size: 15px; margin: 0 0 24px; line-height: 1.5;">
+                You've unlocked exclusive features:<br>
+                <b>Future Reservations</b> & <b>Avail. Soon Booking</b>
+            </p>
+            <button id="success-close-btn" style="
+                width: 100%; padding: 14px; border: none; background: #34a853;
+                color: white; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer;
+                box-shadow: 0 4px 6px rgba(52, 168, 83, 0.3);
+            ">Awesome!</button>
+        </div>
+        <style>
+            @keyframes popIn {
+                0% { transform: scale(0.8); opacity: 0; }
+                100% { transform: scale(1); opacity: 1; }
+            }
+        </style>
+    `;
+
+    document.body.appendChild(overlay);
+
+    document.getElementById('success-close-btn').onclick = () => {
+        overlay.remove();
+    };
+
     overlay.onclick = (e) => {
         if (e.target === overlay) overlay.remove();
     };
