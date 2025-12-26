@@ -241,6 +241,148 @@ async function getTimePlusHoursStr(hours) {
     return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
+// Time Picker Popup for Reservations
+window.showTimePickerPopup = async (spaceId, priceVal) => {
+    // Fetch trusted time from API
+    let currentTime;
+    let usingFallback = false;
+
+    try {
+        const response = await fetch("https://worldtimeapi.org/api/timezone/America/Los_Angeles");
+        if (!response.ok) throw new Error("API response not ok");
+        const data = await response.json();
+        currentTime = new Date(data.datetime);
+        console.log("✓ Time synced from WorldTimeAPI:", currentTime);
+    } catch (e) {
+        console.warn("WorldTimeAPI failed, using local time:", e);
+        currentTime = new Date();
+        usingFallback = true;
+    }
+
+    // Calculate minimum time (2 hours from now)
+    const minTime = new Date(currentTime);
+    minTime.setHours(minTime.getHours() + 2);
+    minTime.setMinutes(0); // Round to start of hour
+
+    // Generate time options (min 2hrs to 12hrs in future)
+    let timeOptions = '';
+    for (let h = 2; h <= 12; h++) {
+        const optTime = new Date(currentTime);
+        optTime.setHours(optTime.getHours() + h);
+        optTime.setMinutes(0);
+        const timeStr = optTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        const dateStr = optTime.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
+        timeOptions += `<option value="${h}">${timeStr} (${dateStr}) - ${h}hr from now</option>`;
+    }
+
+    // Create overlay
+    const overlay = document.createElement('div');
+    overlay.id = 'time-picker-overlay';
+    overlay.style.cssText = `
+        position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+        background: rgba(0,0,0,0.6); z-index: 9999;
+        display: flex; align-items: center; justify-content: center;
+    `;
+
+    const currentTimeDisplay = currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const minTimeDisplay = minTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+    overlay.innerHTML = `
+        <div style="
+            background: white; border-radius: 16px; padding: 24px; max-width: 340px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3); text-align: center;
+        ">
+            <div style="font-size: 40px; margin-bottom: 8px;">🕐</div>
+            <h2 style="margin: 0 0 4px; color: #333; font-size: 20px;">Reserve Space ${spaceId}</h2>
+            <p style="color: #666; font-size: 13px; margin: 0 0 12px;">Rate: <b>$${priceVal.toFixed(2)}/hr</b></p>
+            
+            <div style="
+                background: ${usingFallback ? '#fff3cd' : '#e8f5e9'}; 
+                border: 1px solid ${usingFallback ? '#ffc107' : '#4caf50'};
+                padding: 8px; border-radius: 8px; margin-bottom: 12px; font-size: 12px;
+                color: ${usingFallback ? '#856404' : '#2e7d32'};
+            ">
+                ${usingFallback ? '⚠️ Using device time (API unavailable)' : '✓ Time verified via WorldTimeAPI'}<br>
+                <b>Current Time:</b> ${currentTimeDisplay}
+            </div>
+            
+            <div style="text-align: left; margin-bottom: 12px;">
+                <label style="font-size: 13px; color: #555; font-weight: bold;">Select Reservation Time:</label>
+                <select id="time-select" style="
+                    width: 100%; padding: 12px; margin-top: 6px;
+                    border: 2px solid #1A73E8; border-radius: 8px;
+                    font-size: 14px; cursor: pointer;
+                ">
+                    ${timeOptions}
+                </select>
+                <div style="font-size: 11px; color: #888; margin-top: 4px;">
+                    ⏰ Minimum: ${minTimeDisplay} (2 hours from now)
+                </div>
+            </div>
+            
+            <div style="display: flex; gap: 10px;">
+                <button id="time-cancel-btn" style="
+                    flex: 1; padding: 12px; border: 1px solid #ddd; background: #f5f5f5;
+                    border-radius: 8px; font-size: 14px; cursor: pointer;
+                ">Cancel</button>
+                <button id="time-confirm-btn" style="
+                    flex: 1; padding: 12px; border: none; background: #1A73E8;
+                    color: white; border-radius: 8px; font-size: 14px; font-weight: bold; cursor: pointer;
+                ">Confirm Reservation</button>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(overlay);
+
+    // Button handlers
+    document.getElementById('time-confirm-btn').onclick = async () => {
+        const hoursFromNow = parseInt(document.getElementById('time-select').value);
+        const reservationTime = new Date(currentTime);
+        reservationTime.setHours(reservationTime.getHours() + hoursFromNow);
+        reservationTime.setMinutes(0);
+
+        overlay.remove();
+
+        // Close info window
+        if (activeInfoWindow) activeInfoWindow.close();
+
+        // Find meter and create reservation
+        const meter = parkingDatabase.find(m => m.spaceid === spaceId);
+        if (!meter) return;
+
+        const res = {
+            spaceid: meter.spaceid,
+            type: 'scheduled',
+            lat: parseFloat(meter.latlng.latitude),
+            lng: parseFloat(meter.latlng.longitude),
+            price: meter.priceVal,
+            startTime: reservationTime,
+            hoursFromNow: hoursFromNow
+        };
+
+        myReservations.push(res);
+        meter.status = 'taken';
+
+        // Refresh Map
+        updateMap(GlobalMarkerElement);
+
+        const timeStr = reservationTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        const dateStr = reservationTime.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
+
+        alert(`✅ Reservation Confirmed!\n\nSpace: ${spaceId}\nTime: ${timeStr} on ${dateStr}\nRate: $${meter.priceVal.toFixed(2)}/hr`);
+    };
+
+    document.getElementById('time-cancel-btn').onclick = () => {
+        overlay.remove();
+    };
+
+    // Click outside to close
+    overlay.onclick = (e) => {
+        if (e.target === overlay) overlay.remove();
+    };
+};
+
 // Reservation Logic
 
 
@@ -534,16 +676,25 @@ function renderMarkers(data, AdvancedMarkerElement) {
 
             marker.addListener('click', () => {
                 const isSoon = (meter.status === 'soon');
-                let nowBtn = '';
+
+                let buttonsHtml = '';
 
                 if (isSoon) {
-                    nowBtn = `<button disabled style="
-                        background:#ccc; color:#666; border:none; padding:6px 12px; border-radius:4px; font-weight:bold; flex:1; cursor:not-allowed;
-                     ">Occupied</button>`;
+                    // Available Soon spots - ONLY show Later button (premium required)
+                    buttonsHtml = `
+                        <button onclick="handleReserve('${meter.spaceid}', 'later')" 
+                            style="flex: 1; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; padding: 10px; border-radius: 6px; font-weight: bold; cursor: pointer;">
+                            💎 Reserve Later
+                        </button>
+                    `;
                 } else {
-                    nowBtn = `<button onclick="window.handleReserve('${meter.spaceid}', 'now')" style="
-                        background:#1A73E8; color:white; border:none; padding:6px 12px; border-radius:4px; cursor:pointer; font-weight:bold; flex:1;
-                     ">Reserve Now</button>`;
+                    // Free spots - show time picker button
+                    buttonsHtml = `
+                        <button onclick="showTimePickerPopup('${meter.spaceid}', ${meter.priceVal})" 
+                            style="flex: 1; background: #1A73E8; color: white; border: none; padding: 10px; border-radius: 6px; font-weight: bold; cursor: pointer;">
+                            🕐 Reserve Spot
+                        </button>
+                    `;
                 }
 
                 const content = `
@@ -553,22 +704,14 @@ function renderMarkers(data, AdvancedMarkerElement) {
                     <div style="cursor:pointer;" onclick="activeInfoWindow.close()">✕</div>
                 </div>
                 <p style="margin: 5px 0; color: #666; font-size: 14px;">
-                    Status: <strong style="color: ${color};">${meter.status === 'free' ? 'Free Now' : 'Available Soon'}</strong><br>
-                    Rate: $${meter.priceVal.toFixed(2)}
+                    Status: <strong style="color: ${color};">${isSoon ? 'Available Soon (Premium)' : 'Free Now'}</strong><br>
+                    Rate: $${meter.priceVal.toFixed(2)}/hr
                 </p>
 
                 <div style="display: flex; gap: 10px; margin-top: 10px;">
-                    <button onclick="handleReserve('${meter.spaceid}', 'now')" 
-                        style="flex: 1; background: #1A73E8; color: white; border: none; padding: 10px; border-radius: 6px; font-weight: bold; cursor: pointer;">
-                        Rent Now
-                    </button>
-                    ${meter.status === 'soon' ? `
-                    <button onclick="handleReserve('${meter.spaceid}', 'later')" 
-                        style="flex: 1; background: #f1f3f4; color: #3c4043; border: 1px solid #dadce0; padding: 10px; border-radius: 6px; font-weight: bold; cursor: pointer;">
-                        Later
-                    </button>` : ''}
+                    ${buttonsHtml}
                 </div>
-                <div style="margin-top:8px; font-size:10px; color:#aaa; text-align:center;">*Verifying time via API...</div>
+                ${isSoon ? '<div style="margin-top:8px; font-size:10px; color:#7c4dff; text-align:center;">💎 Premium required to reserve</div>' : ''}
             </div>
         `;
 
