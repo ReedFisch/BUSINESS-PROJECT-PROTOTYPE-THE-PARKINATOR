@@ -18,7 +18,7 @@ window.searchDestination = null;
 
 
 // State - Load from localStorage
-let isPremium = localStorage.getItem('loomis_premium') === 'true';
+window.isPremium = localStorage.getItem('loomis_premium') === 'true';
 
 // Initialize premium UI on load
 window.addEventListener('load', () => {
@@ -31,13 +31,13 @@ function updatePremiumUI() {
 
 
     if (statusEl) {
-        statusEl.innerHTML = isPremium
+        statusEl.innerHTML = window.isPremium
             ? 'Status: <b style="color:#d93025;">Premium 💎</b>'
             : 'Status: <b>Free</b>';
     }
     if (btnEl) {
-        btnEl.innerText = isPremium ? '✓ Premium Active' : '💎 Upgrade ($5)';
-        btnEl.style.background = isPremium ? '#34a853' : '#fbbc04';
+        btnEl.innerText = window.isPremium ? '✓ Premium Active' : '💎 Upgrade ($5)';
+        btnEl.style.background = window.isPremium ? '#34a853' : '#fbbc04';
     }
 
 }
@@ -348,7 +348,7 @@ window.showTimePickerPopup = async (spaceId, priceVal) => {
         // PREMIUM CHECK for "Future" or "Available Soon" reservations
         // If user is NOT premium, block them here (Tease-then-Block pattern)
         // We know it's a future reservation because of the 2-hour minimum
-        if (!isPremium) {
+        if (!window.isPremium) {
             overlay.remove();
             showPremiumRequiredPopup();
             return;
@@ -754,7 +754,7 @@ window.upgradePremium = () => {
         // Show manage subscription options
         const action = confirm("💎 Premium Member\n\nYou're enjoying Premium benefits!\n\nClick OK to cancel subscription.");
         if (action) {
-            isPremium = false;
+            window.isPremium = false;
             localStorage.setItem('loomis_premium', 'false');
             updatePremiumUI();
             alert("Subscription cancelled. You can re-subscribe anytime!");
@@ -819,7 +819,7 @@ function showPayPopup() {
 
     // Button handlers
     document.getElementById('pay-yes-btn').onclick = () => {
-        isPremium = true;
+        window.isPremium = true;
         localStorage.setItem('loomis_premium', 'true');
         updatePremiumUI();
         overlay.remove();
@@ -897,7 +897,7 @@ window.handleReserve = async (spaceId, type) => {
     // If reserving "Now" on a "Free" spot -> Free for everyone (per previous understanding, but user said "future scheduling" needs premium)
     // User request: "change the premium so it does not allow you to reserve later or available soon without it"
 
-    if ((type === 'later' || meter.status === 'soon') && !isPremium) {
+    if ((type === 'later' || meter.status === 'soon') && !window.isPremium) {
         showPremiumRequiredPopup();
         return;
     }
@@ -974,7 +974,7 @@ window.reserveNow = async (spaceId) => {
 // Hold Spot for 10 Minutes - Premium Feature
 window.holdSpotFor10Min = async (spaceId, priceVal) => {
     // PREMIUM CHECK
-    if (!isPremium) {
+    if (!window.isPremium) {
         showPremiumRequiredPopup();
         return;
     }
