@@ -703,17 +703,29 @@ function renderMarkers(data, AdvancedMarkerElement) {
                         </button>
                     `;
                 } else {
-                    // Free spots - show time picker button (uses Time API)
+                    // Free spots - show THREE options: Reserve Now (free), Hold 10 Min (premium), Reserve Later (premium)
                     buttonsHtml = `
-                        <button onclick="showTimePickerPopup('${meter.spaceid}', ${meter.priceVal})" 
-                            style="flex: 1; background: #1A73E8; color: white; border: none; padding: 10px; border-radius: 6px; font-weight: bold; cursor: pointer;">
-                            🕐 Reserve Spot
-                        </button>
+                        <div style="display: flex; flex-direction: column; gap: 8px; width: 100%;">
+                            <button onclick="reserveNow('${meter.spaceid}')" 
+                                style="width: 100%; background: #34C759; color: white; border: none; padding: 12px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 14px;">
+                                ✓ Reserve Now
+                            </button>
+                            <div style="display: flex; gap: 8px;">
+                                <button onclick="holdSpotFor10Min('${meter.spaceid}', ${meter.priceVal})" 
+                                    style="flex: 1; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; padding: 10px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 12px;">
+                                    💎 Hold 10 Min
+                                </button>
+                                <button onclick="showTimePickerPopup('${meter.spaceid}', ${meter.priceVal})" 
+                                    style="flex: 1; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; padding: 10px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 12px;">
+                                    💎 Reserve Later
+                                </button>
+                            </div>
+                        </div>
                     `;
                 }
 
                 const content = `
-            <div style="padding: 10px; min-width: 200px;">
+            <div style="padding: 10px; min-width: 220px;">
                 <div style="display:flex; justify-content:space-between; align-items:center;">
                     <h3 style="margin: 0 0 5px 0; color: #333; font-size: 18px;">Space ${meter.spaceid}</h3>
                     <div style="cursor:pointer;" onclick="activeInfoWindow.close()">✕</div>
@@ -723,10 +735,10 @@ function renderMarkers(data, AdvancedMarkerElement) {
                     Rate: $${meter.priceVal.toFixed(2)}/hr
                 </p>
 
-                <div style="display: flex; gap: 10px; margin-top: 10px;">
+                <div style="margin-top: 10px;">
                     ${buttonsHtml}
                 </div>
-                ${isSoon ? '<div style="margin-top:8px; font-size:10px; color:#7c4dff; text-align:center;">💎 Premium required to reserve</div>' : ''}
+                ${isSoon ? '<div style="margin-top:8px; font-size:10px; color:#7c4dff; text-align:center;">💎 Premium required to reserve</div>' : '<div style="margin-top:8px; font-size:10px; color:#7c4dff; text-align:center;">💎 Hold & Reserve Later require Premium</div>'}
             </div>
         `;
 
@@ -920,6 +932,90 @@ window.handleReserve = async (spaceId, type) => {
     if (activeInfoWindow) activeInfoWindow.close();
 
     alert("Reservation Confirmed!\nSpace: " + spaceId);
+};
+
+// Reserve Now - Free for everyone, immediate reservation
+window.reserveNow = async (spaceId) => {
+    const meter = parkingDatabase.find(m => m.spaceid === spaceId);
+    if (!meter) return;
+
+    // Get time
+    let startTime = new Date();
+    try {
+        if (typeof getTrustedTime === 'function') {
+            const t = await getTrustedTime();
+            if (t) startTime = t;
+        }
+    } catch (e) {
+        console.warn("Time sync failed, using local", e);
+    }
+
+    const res = {
+        spaceid: meter.spaceid,
+        type: 'now',
+        lat: parseFloat(meter.latlng.latitude),
+        lng: parseFloat(meter.latlng.longitude),
+        price: meter.priceVal,
+        startTime: startTime
+    };
+
+    myReservations.push(res);
+    meter.status = 'taken';
+
+    // Refresh Map
+    updateMap(GlobalMarkerElement);
+
+    // Close Window
+    if (activeInfoWindow) activeInfoWindow.close();
+
+    alert("✅ Reservation Confirmed!\nSpace: " + spaceId + "\nStatus: Reserved Now\nRate: $" + meter.priceVal.toFixed(2) + "/hr");
+};
+
+// Hold Spot for 10 Minutes - Premium Feature
+window.holdSpotFor10Min = async (spaceId, priceVal) => {
+    // PREMIUM CHECK
+    if (!isPremium) {
+        showPremiumRequiredPopup();
+        return;
+    }
+
+    const meter = parkingDatabase.find(m => m.spaceid === spaceId);
+    if (!meter) return;
+
+    // Get time
+    let startTime = new Date();
+    try {
+        if (typeof getTrustedTime === 'function') {
+            const t = await getTrustedTime();
+            if (t) startTime = t;
+        }
+    } catch (e) {
+        console.warn("Time sync failed, using local", e);
+    }
+
+    const holdEndTime = new Date(startTime.getTime() + 10 * 60 * 1000); // 10 minutes from now
+
+    const res = {
+        spaceid: meter.spaceid,
+        type: 'hold',
+        lat: parseFloat(meter.latlng.latitude),
+        lng: parseFloat(meter.latlng.longitude),
+        price: meter.priceVal,
+        startTime: startTime,
+        holdUntil: holdEndTime
+    };
+
+    myReservations.push(res);
+    meter.status = 'taken';
+
+    // Refresh Map
+    updateMap(GlobalMarkerElement);
+
+    // Close Window
+    if (activeInfoWindow) activeInfoWindow.close();
+
+    const endTimeStr = holdEndTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    alert("⏱️ Spot Held!\n\nSpace: " + spaceId + "\nHeld until: " + endTimeStr + " (10 min)\nRate: $" + meter.priceVal.toFixed(2) + "/hr\n\n💡 Complete your reservation within 10 minutes or the hold will expire.");
 };
 
 function showPremiumRequiredPopup() {
