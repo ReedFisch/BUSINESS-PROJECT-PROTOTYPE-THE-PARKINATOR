@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Loomis Park (v3.0)</title>
     <link rel="icon" type="image/png" href="spot_scout_logo.png">
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style.css?v=6">
     <!-- Google Maps API -->
     <script>
         (g => { var h, a, k, p = "The Google Maps JavaScript API", c = "google", l = "importLibrary", q = "__ib__", m = document, b = window; b = b[c] || (b[c] = {}); var d = b.maps || (b.maps = {}), r = new Set, e = new URLSearchParams, u = () => h || (h = new Promise(async (f, n) => { await (a = m.createElement("script")); e.set("libraries", [...r] + ""); for (k in g) e.set(k.replace(/[A-Z]/g, t => "_" + t[0].toLowerCase()), g[k]); e.set("callback", c + ".maps." + q); a.src = `https://maps.${c}apis.com/maps/api/js?` + e; d[q] = f; a.onerror = () => h = n(Error(p + " could not load.")); a.nonce = m.querySelector("script[nonce]")?.nonce || ""; m.head.append(a) })); d[l] ? console.warn(p + " only loads once. Ignoring:", g) : d[l] = (f, ...n) => r.add(f) && u().then(() => d[l](f, ...n)) })({
@@ -52,8 +52,21 @@
                 </label>
             </div>
 
-            <div
-                style="padding-top:12px; border-top:1px solid #eee; font-size:11px; text-align:center; color:#999; line-height:1.4;">
+            <div id="premium-container" style="margin-bottom:15px; text-align:center;">
+                <div id="premium-status" style="font-size:12px; color:#555; margin-bottom:8px;">Status: <b>Free</b>
+                </div>
+
+                <!-- Demo Toggle -->
+
+
+                <button onclick="upgradePremium()" id="premium-btn"
+                    style="width:100%; background:#fbbc04; color:#333; border:none; padding:8px; border-radius:6px; font-weight:bold; cursor:pointer;">
+                    💎 Upgrade ($5)
+                </button>
+            </div>
+
+            <div onclick="triggerRain()"
+                style="padding-top:12px; border-top:1px solid #eee; font-size:11px; text-align:center; color:#999; line-height:1.4; cursor:pointer;">
                 <b>Loomis Inc</b><br>
                 Reed, Liam, and Gabby<br>
                 v3.3
@@ -71,7 +84,7 @@
     <div id="controls">
         <div id="stats">Loading data...</div>
     </div>
-    <script src="app.js"></script>
+    <script src="app.js?v=7"></script>
 </body>
 
 </html>
