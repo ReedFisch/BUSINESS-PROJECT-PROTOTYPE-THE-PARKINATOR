@@ -271,14 +271,22 @@ window.showTimePickerPopup = async (spaceId, priceVal) => {
     const currentTimeDisplay = currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     const minTimeDisplay = minTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
+    // Dark mode colors
+    const popupBg = isDarkMode ? '#2c2c2c' : 'white';
+    const popupText = isDarkMode ? '#e0e0e0' : '#333';
+    const popupSubtext = isDarkMode ? '#aaa' : '#666';
+    const inputBg = isDarkMode ? '#444' : 'white';
+    const cancelBg = isDarkMode ? '#444' : '#f5f5f5';
+    const cancelBorder = isDarkMode ? '#555' : '#ddd';
+
     overlay.innerHTML = `
         <div style="
-            background: white; border-radius: 16px; padding: 24px; max-width: 340px;
+            background: ${popupBg}; border-radius: 16px; padding: 24px; max-width: 340px;
             box-shadow: 0 8px 32px rgba(0,0,0,0.3); text-align: center;
         ">
             <div style="font-size: 40px; margin-bottom: 8px;">🕐</div>
-            <h2 style="margin: 0 0 4px; color: #333; font-size: 20px;">Reserve Space ${spaceId}</h2>
-            <p style="color: #666; font-size: 13px; margin: 0 0 12px;">Rate: <b>$${priceVal.toFixed(2)}/hr</b></p>
+            <h2 style="margin: 0 0 4px; color: ${popupText}; font-size: 20px;">Reserve Space ${spaceId}</h2>
+            <p style="color: ${popupSubtext}; font-size: 13px; margin: 0 0 12px;">Rate: <b>$${priceVal.toFixed(2)}/hr</b></p>
             
             <div style="
                 background: ${usingFallback ? '#fff3cd' : '#e8f5e9'}; 
@@ -291,21 +299,22 @@ window.showTimePickerPopup = async (spaceId, priceVal) => {
             </div>
             
             <div style="text-align: left; margin-bottom: 12px;">
-                <label style="font-size: 13px; color: #555; font-weight: bold;">Select Date & Time:</label>
+                <label style="font-size: 13px; color: ${popupSubtext}; font-weight: bold;">Select Date & Time:</label>
                 <input type="datetime-local" id="time-input" value="${defaultsIso}" min="${minLocIso}" style="
                     width: 100%; padding: 12px; margin-top: 6px;
                     border: 2px solid #1A73E8; border-radius: 8px;
                     font-size: 16px; cursor: pointer; font-family: sans-serif;
+                    background: ${inputBg}; color: ${popupText};
                 ">
-                <div style="font-size: 11px; color: #888; margin-top: 4px;">
+                <div style="font-size: 11px; color: ${popupSubtext}; margin-top: 4px;">
                     ⏰ Earliest allowed: ${minTimeDisplay} (Today)
                 </div>
             </div>
             
             <div style="display: flex; gap: 10px;">
                 <button id="time-cancel-btn" style="
-                    flex: 1; padding: 12px; border: 1px solid #ddd; background: #f5f5f5;
-                    border-radius: 8px; font-size: 14px; cursor: pointer;
+                    flex: 1; padding: 12px; border: 1px solid ${cancelBorder}; background: ${cancelBg};
+                    border-radius: 8px; font-size: 14px; cursor: pointer; color: ${popupText};
                 ">Cancel</button>
                 <button id="time-confirm-btn" style="
                     flex: 1; padding: 12px; border: none; background: #1A73E8;
@@ -753,15 +762,22 @@ function showPayPopup() {
         display: flex; align-items: center; justify-content: center;
     `;
 
+    // Dark mode colors
+    const popupBg = isDarkMode ? '#2c2c2c' : 'white';
+    const popupText = isDarkMode ? '#e0e0e0' : '#333';
+    const popupSubtext = isDarkMode ? '#aaa' : '#666';
+    const cancelBg = isDarkMode ? '#444' : '#f5f5f5';
+    const cancelBorder = isDarkMode ? '#555' : '#ddd';
+
     // Create popup
     overlay.innerHTML = `
         <div style="
-            background: white; border-radius: 16px; padding: 24px; max-width: 320px;
+            background: ${popupBg}; border-radius: 16px; padding: 24px; max-width: 320px;
             box-shadow: 0 8px 32px rgba(0,0,0,0.3); text-align: center;
         ">
             <div style="font-size: 48px; margin-bottom: 12px;">💎</div>
-            <h2 style="margin: 0 0 8px; color: #333; font-size: 22px;">Upgrade to Premium</h2>
-            <p style="color: #666; font-size: 14px; margin: 0 0 16px;">
+            <h2 style="margin: 0 0 8px; color: ${popupText}; font-size: 22px;">Upgrade to Premium</h2>
+            <p style="color: ${popupSubtext}; font-size: 14px; margin: 0 0 16px;">
                 Unlock future reservations and "Available Soon" spots!
             </p>
             <div style="
@@ -772,15 +788,15 @@ function showPayPopup() {
             </div>
             <div style="display: flex; gap: 10px;">
                 <button id="pay-cancel-btn" style="
-                    flex: 1; padding: 12px; border: 1px solid #ddd; background: #f5f5f5;
-                    border-radius: 8px; font-size: 14px; cursor: pointer;
+                    flex: 1; padding: 12px; border: 1px solid ${cancelBorder}; background: ${cancelBg};
+                    border-radius: 8px; font-size: 14px; cursor: pointer; color: ${popupText};
                 ">Cancel</button>
                 <button id="pay-yes-btn" style="
                     flex: 1; padding: 12px; border: none; background: #34a853;
                     color: white; border-radius: 8px; font-size: 14px; font-weight: bold; cursor: pointer;
                 ">Yes, Subscribe!</button>
             </div>
-            <p style="color: #999; font-size: 11px; margin: 12px 0 0;">(DEMO: Click Yes to activate)</p>
+            <p style="color: ${popupSubtext}; font-size: 11px; margin: 12px 0 0;">(DEMO: Click Yes to activate)</p>
         </div>
     `;
 
@@ -815,15 +831,19 @@ function showSuccessPopup() {
         display: flex; align-items: center; justify-content: center;
     `;
 
+    // Dark mode colors
+    const popupBg = isDarkMode ? '#2c2c2c' : 'white';
+    const popupSubtext = isDarkMode ? '#aaa' : '#666';
+
     overlay.innerHTML = `
         <div style="
-            background: white; border-radius: 16px; padding: 32px; max-width: 320px;
+            background: ${popupBg}; border-radius: 16px; padding: 32px; max-width: 320px;
             box-shadow: 0 8px 32px rgba(0,0,0,0.3); text-align: center;
             animation: popIn 0.3s ease-out;
         ">
             <div style="font-size: 64px; margin-bottom: 16px;">🎉</div>
             <h2 style="margin: 0 0 8px; color: #34a853; font-size: 24px;">Welcome to Premium!</h2>
-            <p style="color: #666; font-size: 15px; margin: 0 0 24px; line-height: 1.5;">
+            <p style="color: ${popupSubtext}; font-size: 15px; margin: 0 0 24px; line-height: 1.5;">
                 You've unlocked exclusive features:<br>
                 <b>Future Reservations</b> & <b>Avail. Soon Booking</b>
             </p>
@@ -908,14 +928,21 @@ function showPremiumRequiredPopup() {
         display: flex; align-items: center; justify-content: center;
     `;
 
+    // Dark mode colors
+    const popupBg = isDarkMode ? '#2c2c2c' : 'white';
+    const popupText = isDarkMode ? '#e0e0e0' : '#333';
+    const popupSubtext = isDarkMode ? '#aaa' : '#666';
+    const cancelBg = isDarkMode ? '#444' : '#f5f5f5';
+    const cancelBorder = isDarkMode ? '#555' : '#ddd';
+
     overlay.innerHTML = `
         <div style="
-            background: white; border-radius: 16px; padding: 24px; max-width: 320px;
+            background: ${popupBg}; border-radius: 16px; padding: 24px; max-width: 320px;
             box-shadow: 0 8px 32px rgba(0,0,0,0.3); text-align: center;
         ">
             <div style="font-size: 48px; margin-bottom: 12px;">🔒</div>
-            <h2 style="margin: 0 0 8px; color: #333; font-size: 20px;">Premium Feature</h2>
-            <p style="color: #666; font-size: 14px; margin: 0 0 16px; line-height: 1.5;">
+            <h2 style="margin: 0 0 8px; color: ${popupText}; font-size: 20px;">Premium Feature</h2>
+            <p style="color: ${popupSubtext}; font-size: 14px; margin: 0 0 16px; line-height: 1.5;">
                 Reserving <b>"Available Soon"</b> spots and <b>future bookings</b> requires a Premium subscription.
             </p>
             <div style="
@@ -926,8 +953,8 @@ function showPremiumRequiredPopup() {
             </div>
             <div style="display: flex; gap: 10px;">
                 <button id="prem-req-cancel" style="
-                    flex: 1; padding: 12px; border: 1px solid #ddd; background: #f5f5f5;
-                    border-radius: 8px; font-size: 14px; cursor: pointer;
+                    flex: 1; padding: 12px; border: 1px solid ${cancelBorder}; background: ${cancelBg};
+                    border-radius: 8px; font-size: 14px; cursor: pointer; color: ${popupText};
                 ">Not Now</button>
                 <button id="prem-req-subscribe" style="
                     flex: 1; padding: 12px; border: none; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -963,3 +990,50 @@ if (window.google && window.google.maps) {
         }
     });
 }
+
+// Easter Egg: Rain Animation
+window.triggerRain = () => {
+    const images = ['egg1.png', 'egg2.png', 'egg3.png'];
+    // Prevent multiple containers
+    if (document.getElementById('rain-container')) return;
+
+    const container = document.createElement('div');
+    container.id = 'rain-container';
+    container.style.cssText = 'position:fixed; top:0; left:0; width:100%; height:100%; pointer-events:none; z-index:10000; overflow:hidden;';
+    document.body.appendChild(container);
+
+    // Add styles for animation
+    const style = document.createElement('style');
+    style.innerHTML = `
+        @keyframes fall {
+            0% { transform: translateY(-10vh) rotate(0deg); opacity: 1; }
+            100% { transform: translateY(110vh) rotate(360deg); opacity: 0.8; }
+        }
+    `;
+    container.appendChild(style);
+
+    // Spawn Drops
+    for (let i = 0; i < 40; i++) {
+        const img = document.createElement('img');
+        img.src = images[Math.floor(Math.random() * images.length)];
+        const size = 40 + Math.random() * 60; // 40-100px
+        const dur = 2 + Math.random() * 3; // 2-5s
+
+        img.style.cssText = `
+            position: absolute;
+            top: -150px;
+            left: ${Math.random() * 100}vw;
+            width: ${size}px;
+            height: auto;
+            animation: fall ${dur}s linear forwards;
+            animation-delay: ${Math.random() * 4}s;
+            opacity: 0.9;
+        `;
+        container.appendChild(img);
+    }
+
+    // Cleanup
+    setTimeout(() => {
+        container.remove();
+    }, 10000);
+};
