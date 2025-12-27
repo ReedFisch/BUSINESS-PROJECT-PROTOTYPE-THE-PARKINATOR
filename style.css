@@ -322,3 +322,50 @@ body.dark-mode .gm-style-iw button.gm-ui-hover-effect {
     filter: invert(1);
     /* Invert the X close button */
 }
+
+/* Search Input Dark Mode */
+body.dark-mode #pac-input {
+    background: #333 !important;
+    color: white !important;
+    border: 1px solid #555 !important;
+}
+
+body.dark-mode #pac-input::placeholder {
+    color: #bbb !important;
+    opacity: 1;
+}
+
+/* Google Places Autocomplete Dropdown Dark Mode */
+body.dark-mode .pac-container {
+    background-color: #2c2c2c !important;
+    border: 1px solid #444 !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5) !important;
+}
+
+body.dark-mode .pac-item {
+    background-color: #2c2c2c !important;
+    color: white !important;
+    border-top: 1px solid #444 !important;
+    padding: 8px 12px !important;
+}
+
+body.dark-mode .pac-item:hover {
+    background-color: #3c3c3c !important;
+}
+
+body.dark-mode .pac-item-query {
+    color: white !important;
+}
+
+body.dark-mode .pac-item span,
+body.dark-mode .pac-item-query span {
+    color: #bbb !important;
+}
+
+body.dark-mode .pac-matched {
+    color: #8ab4f8 !important;
+}
+
+body.dark-mode .pac-icon {
+    filter: invert(0.8);
+}
