@@ -16,4 +16,10 @@ git add -A
 git commit -m "[descriptive message of changes made]"
 ```
 
+3. Push to GitHub:
+```bash
+git push
+```
+
 **Note**: The commit message should briefly describe what was accomplished in the request.
+
