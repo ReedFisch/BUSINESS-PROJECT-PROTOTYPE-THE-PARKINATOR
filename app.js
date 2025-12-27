@@ -271,13 +271,15 @@ window.showTimePickerPopup = async (spaceId, priceVal) => {
     const currentTimeDisplay = currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     const minTimeDisplay = minTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-    // Dark mode colors
-    const popupBg = isDarkMode ? '#2c2c2c' : 'white';
-    const popupText = isDarkMode ? '#e0e0e0' : '#333';
-    const popupSubtext = isDarkMode ? '#aaa' : '#666';
-    const inputBg = isDarkMode ? '#444' : 'white';
-    const cancelBg = isDarkMode ? '#444' : '#f5f5f5';
-    const cancelBorder = isDarkMode ? '#555' : '#ddd';
+    // Dark mode colors - check body class directly for reliability
+    const darkModeActive = document.body.classList.contains('dark-mode');
+    console.log('Dark mode active:', darkModeActive);
+    const popupBg = darkModeActive ? '#2c2c2c' : 'white';
+    const popupText = darkModeActive ? '#e0e0e0' : '#333';
+    const popupSubtext = darkModeActive ? '#aaa' : '#666';
+    const inputBg = darkModeActive ? '#444' : 'white';
+    const cancelBg = darkModeActive ? '#444' : '#f5f5f5';
+    const cancelBorder = darkModeActive ? '#555' : '#ddd';
 
     overlay.innerHTML = `
         <div style="
@@ -762,12 +764,13 @@ function showPayPopup() {
         display: flex; align-items: center; justify-content: center;
     `;
 
-    // Dark mode colors
-    const popupBg = isDarkMode ? '#2c2c2c' : 'white';
-    const popupText = isDarkMode ? '#e0e0e0' : '#333';
-    const popupSubtext = isDarkMode ? '#aaa' : '#666';
-    const cancelBg = isDarkMode ? '#444' : '#f5f5f5';
-    const cancelBorder = isDarkMode ? '#555' : '#ddd';
+    // Dark mode colors - check body class directly for reliability
+    const darkModeActive = document.body.classList.contains('dark-mode');
+    const popupBg = darkModeActive ? '#2c2c2c' : 'white';
+    const popupText = darkModeActive ? '#e0e0e0' : '#333';
+    const popupSubtext = darkModeActive ? '#aaa' : '#666';
+    const cancelBg = darkModeActive ? '#444' : '#f5f5f5';
+    const cancelBorder = darkModeActive ? '#555' : '#ddd';
 
     // Create popup
     overlay.innerHTML = `
@@ -831,9 +834,10 @@ function showSuccessPopup() {
         display: flex; align-items: center; justify-content: center;
     `;
 
-    // Dark mode colors
-    const popupBg = isDarkMode ? '#2c2c2c' : 'white';
-    const popupSubtext = isDarkMode ? '#aaa' : '#666';
+    // Dark mode colors - check body class directly for reliability
+    const darkModeActive = document.body.classList.contains('dark-mode');
+    const popupBg = darkModeActive ? '#2c2c2c' : 'white';
+    const popupSubtext = darkModeActive ? '#aaa' : '#666';
 
     overlay.innerHTML = `
         <div style="
@@ -928,12 +932,13 @@ function showPremiumRequiredPopup() {
         display: flex; align-items: center; justify-content: center;
     `;
 
-    // Dark mode colors
-    const popupBg = isDarkMode ? '#2c2c2c' : 'white';
-    const popupText = isDarkMode ? '#e0e0e0' : '#333';
-    const popupSubtext = isDarkMode ? '#aaa' : '#666';
-    const cancelBg = isDarkMode ? '#444' : '#f5f5f5';
-    const cancelBorder = isDarkMode ? '#555' : '#ddd';
+    // Dark mode colors - check body class directly for reliability
+    const darkModeActive = document.body.classList.contains('dark-mode');
+    const popupBg = darkModeActive ? '#2c2c2c' : 'white';
+    const popupText = darkModeActive ? '#e0e0e0' : '#333';
+    const popupSubtext = darkModeActive ? '#aaa' : '#666';
+    const cancelBg = darkModeActive ? '#444' : '#f5f5f5';
+    const cancelBorder = darkModeActive ? '#555' : '#ddd';
 
     overlay.innerHTML = `
         <div style="
