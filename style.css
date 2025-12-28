@@ -369,3 +369,43 @@ body.dark-mode .pac-matched {
 body.dark-mode .pac-icon {
     filter: invert(0.8);
 }
+
+/* Google Maps Default Place Cards (POI popups like hotels, restaurants, etc.) */
+body.dark-mode .gm-style .place-card,
+body.dark-mode .gm-style .place-card-large,
+body.dark-mode .gm-style .place-card-medium,
+body.dark-mode .gm-style .default-card,
+body.dark-mode .gm-style .poi-info-window,
+body.dark-mode .gm-style [class*="place-card"],
+body.dark-mode .gm-style-mtc,
+body.dark-mode .gm-style-mtc-bbw {
+    background-color: #2c2c2c !important;
+    color: #e0e0e0 !important;
+}
+
+/* Target the white card container more aggressively */
+body.dark-mode .gm-style>div>div>div>div>div>div[style*="background-color: rgb(255, 255, 255)"],
+body.dark-mode .gm-style>div>div>div>div>div>div[style*="background: white"],
+body.dark-mode .gm-style>div>div>div>div>div>div[style*="background-color: white"] {
+    background-color: #2c2c2c !important;
+}
+
+/* All text inside the place card area */
+body.dark-mode .gm-style [role="dialog"],
+body.dark-mode .gm-style [role="dialog"] * {
+    background-color: #2c2c2c !important;
+    color: #e0e0e0 !important;
+}
+
+/* Address and link text */
+body.dark-mode .gm-style a[href*="maps.google.com"],
+body.dark-mode .gm-style [data-value],
+body.dark-mode .gm-style .address-line {
+    color: #8ab4f8 !important;
+}
+
+/* The popup tail/arrow for place cards */
+body.dark-mode .gm-style>div>div>div>div>div>div>div[style*="border-color: white"],
+body.dark-mode .gm-style .gm-style-iw-a::after {
+    border-color: #2c2c2c transparent transparent transparent !important;
+}
