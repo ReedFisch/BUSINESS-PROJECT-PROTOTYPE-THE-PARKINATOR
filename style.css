@@ -323,6 +323,16 @@ body.dark-mode .gm-style-iw button.gm-ui-hover-effect {
     /* Invert the X close button */
 }
 
+/* Hide Google Maps default InfoWindow header bar (the gray/black bar with close button) */
+.gm-style-iw-chr {
+    display: none !important;
+}
+
+/* Also target related header elements that may appear */
+.gm-style-iw .gm-style-iw-ch {
+    display: none !important;
+}
+
 /* Search Input Dark Mode */
 body.dark-mode #pac-input {
     background: #1a1a1a !important;
