@@ -697,7 +697,7 @@ function renderMarkers(data, AdvancedMarkerElement) {
                 if (isSoon) {
                     // Available Soon spots - Show premium paywall immediately if not premium
                     buttonsHtml = `
-                        <button onclick="if(!isPremium){showPremiumRequiredPopup();}else{showTimePickerPopup('${meter.spaceid}', ${meter.priceVal});}" 
+                        <button onclick="if(!window.isPremium){showPremiumRequiredPopup();}else{showTimePickerPopup('${meter.spaceid}', ${meter.priceVal});}" 
                             style="flex: 1; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; padding: 10px; border-radius: 6px; font-weight: bold; cursor: pointer;">
                             💎 Reserve Later
                         </button>
@@ -711,11 +711,11 @@ function renderMarkers(data, AdvancedMarkerElement) {
                                 ✓ Reserve Now
                             </button>
                             <div style="display: flex; gap: 8px;">
-                                <button onclick="holdSpotFor10Min('${meter.spaceid}', ${meter.priceVal})" 
+                                <button onclick="if(!window.isPremium){showPremiumRequiredPopup();}else{holdSpotFor10Min('${meter.spaceid}', ${meter.priceVal});}" 
                                     style="flex: 1; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; padding: 10px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 12px;">
                                     💎 Hold 10 Min
                                 </button>
-                                <button onclick="showTimePickerPopup('${meter.spaceid}', ${meter.priceVal})" 
+                                <button onclick="if(!window.isPremium){showPremiumRequiredPopup();}else{showTimePickerPopup('${meter.spaceid}', ${meter.priceVal});}" 
                                     style="flex: 1; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; padding: 10px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 12px;">
                                     💎 Reserve Later
                                 </button>
@@ -757,20 +757,85 @@ function renderMarkers(data, AdvancedMarkerElement) {
 
 window.upgradePremium = () => {
     if (isPremium) {
-        // Show manage subscription options
-        const action = confirm("💎 Premium Member\n\nYou're enjoying Premium benefits!\n\nClick OK to cancel subscription.");
-        if (action) {
-            window.isPremium = false;
-            localStorage.setItem('loomis_premium', 'false');
-            updatePremiumUI();
-            alert("Subscription cancelled. You can re-subscribe anytime!");
-        }
+        // Show in-app manage subscription popup instead of confirm()
+        showCancelPremiumPopup();
         return;
     }
 
     // Show pay popup
     showPayPopup();
 };
+
+// Cancel Premium Popup - replaces browser confirm() for better UX
+function showCancelPremiumPopup() {
+    const overlay = document.createElement('div');
+    overlay.id = 'cancel-premium-overlay';
+    overlay.style.cssText = `
+        position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+        background: rgba(0,0,0,0.6); z-index: 9999;
+        display: flex; align-items: center; justify-content: center;
+    `;
+
+    // Dark mode colors
+    const darkModeActive = document.body.classList.contains('dark-mode');
+    const popupBg = darkModeActive ? '#2c2c2c' : 'white';
+    const popupText = darkModeActive ? '#e0e0e0' : '#333';
+    const popupSubtext = darkModeActive ? '#aaa' : '#666';
+    const keepBg = darkModeActive ? '#444' : '#f5f5f5';
+    const keepBorder = darkModeActive ? '#555' : '#ddd';
+
+    overlay.innerHTML = `
+        <div style="
+            background: ${popupBg}; border-radius: 16px; padding: 24px; max-width: 320px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3); text-align: center;
+        ">
+            <div style="font-size: 48px; margin-bottom: 12px;">💎</div>
+            <h2 style="margin: 0 0 8px; color: ${popupText}; font-size: 20px;">Premium Active</h2>
+            <p style="color: ${popupSubtext}; font-size: 14px; margin: 0 0 16px; line-height: 1.5;">
+                You're enjoying Premium benefits!<br>Do you want to cancel your subscription?
+            </p>
+            <div style="
+                background: linear-gradient(135deg, rgba(102,126,234,0.15) 0%, rgba(118,75,162,0.15) 100%);
+                padding: 12px; border-radius: 8px; margin-bottom: 16px;
+                font-size: 13px; color: ${popupSubtext};
+            ">
+                ✅ Future Reservations<br>
+                ✅ "Available Soon" Booking<br>
+                ✅ 10-Minute Hold Feature
+            </div>
+            <div style="display: flex; gap: 10px;">
+                <button id="cancel-premium-keep" style="
+                    flex: 1; padding: 12px; border: 1px solid ${keepBorder}; background: ${keepBg};
+                    border-radius: 8px; font-size: 14px; cursor: pointer; color: ${popupText};
+                ">Keep Premium</button>
+                <button id="cancel-premium-confirm" style="
+                    flex: 1; padding: 12px; border: none; background: #d93025;
+                    color: white; border-radius: 8px; font-size: 14px; font-weight: bold; cursor: pointer;
+                ">Cancel Sub</button>
+            </div>
+            <p style="color: ${popupSubtext}; font-size: 11px; margin: 12px 0 0;">(DEMO: Click Cancel to deactivate)</p>
+        </div>
+    `;
+
+    document.body.appendChild(overlay);
+
+    document.getElementById('cancel-premium-confirm').onclick = () => {
+        window.isPremium = false;
+        localStorage.setItem('loomis_premium', 'false');
+        updatePremiumUI();
+        overlay.remove();
+        alert("Subscription cancelled. You can re-subscribe anytime!");
+    };
+
+    document.getElementById('cancel-premium-keep').onclick = () => {
+        overlay.remove();
+    };
+
+    // Click outside to close
+    overlay.onclick = (e) => {
+        if (e.target === overlay) overlay.remove();
+    };
+}
 
 function showPayPopup() {
     // Create overlay

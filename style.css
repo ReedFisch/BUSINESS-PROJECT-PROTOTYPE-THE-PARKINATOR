@@ -55,6 +55,21 @@ body.dark-mode button {
     color: #e0e0e0 !important;
 }
 
+/* Preserve action buttons with inline background styles in dark mode */
+body.dark-mode .gm-style-iw button[style*="background: #34C759"],
+body.dark-mode .gm-style-iw button[style*="background:#34C759"],
+body.dark-mode button[style*="background: #34C759"],
+body.dark-mode button[style*="background:#34C759"] {
+    background: #34C759 !important;
+    color: white !important;
+}
+
+/* Preserve purple gradient premium buttons */
+body.dark-mode .gm-style-iw button[style*="linear-gradient"],
+body.dark-mode button[style*="linear-gradient"] {
+    color: white !important;
+}
+
 body.dark-mode input[type="text"] {
     background: #333 !important;
     color: white !important;
