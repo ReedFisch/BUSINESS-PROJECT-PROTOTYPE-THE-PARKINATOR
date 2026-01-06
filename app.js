@@ -594,19 +594,19 @@ function updateStats(meters, container) {
     // New Dual Buttons
     reservationHtml += `
         <div class="smart-find-box">
-             <div class="sf-label">Smart Find</div>
-             <div style="display:flex; gap:5px;">
-                  <button onclick="navigateToClosest()" class="nav-btn-light">📍 Closest</button>
-                  <button onclick="navigateToCheapest()" class="nav-btn-blue">💲 Cheapest</button>
+             <div class="sf-label" style="font-size: 11px; font-weight: 600; letter-spacing: 0.5px; margin-bottom: 8px;">✨ SMART FIND</div>
+             <div style="display:flex; gap:8px; margin-bottom: 10px;">
+                  <button onclick="navigateToClosest()" class="nav-btn-light" style="display: flex; align-items: center; justify-content: center; gap: 4px;">📍 Closest</button>
+                  <button onclick="navigateToCheapest()" class="nav-btn-blue" style="display: flex; align-items: center; justify-content: center; gap: 4px;">💲 Cheapest</button>
              </div>
-             <div class="sf-price">Best Price: <b>${cheapDisp}</b></div>
+             <div class="sf-price" style="font-size: 13px; padding: 6px 10px; background: rgba(24, 128, 56, 0.1); border-radius: 6px; display: inline-block;">Best Price: <b style="font-size: 15px;">${cheapDisp}</b></div>
         </div>
     `;
 
     container.innerHTML = `
         <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
             <div><small>VISIBLE</small> <b>${meters.length}</b></div>
-            <div style="text-align:right;"><small>FREE</small> <b style="color:#34C759;">${available.length}</b></div>
+            <div style="text-align:right;"><small>AVAILABLE</small> <b style="color:#34C759;">${available.length}</b></div>
         </div>
         ${reservationHtml}
     `;
@@ -725,20 +725,26 @@ function renderMarkers(data, AdvancedMarkerElement) {
                 }
 
                 const content = `
-            <div style="padding: 10px; min-width: 220px;">
-                <div style="display:flex; justify-content:space-between; align-items:center;">
-                    <h3 style="margin: 0 0 5px 0; color: #333; font-size: 18px;">Space ${meter.spaceid}</h3>
-                    <div style="cursor:pointer;" onclick="activeInfoWindow.close()">✕</div>
+            <div style="padding: 14px; min-width: 240px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 8px;">
+                    <h3 style="margin: 0; color: #333; font-size: 18px; font-weight: 600;">Space ${meter.spaceid}</h3>
+                    <div style="cursor:pointer; padding: 4px 8px; border-radius: 4px; background: #f5f5f5; font-size: 12px;" onclick="activeInfoWindow.close()">✕</div>
                 </div>
-                <p style="margin: 5px 0; color: #666; font-size: 14px;">
-                    Status: <strong style="color: ${color};">${isSoon ? 'Available Soon (Premium)' : 'Free Now'}</strong><br>
-                    Rate: $${meter.priceVal.toFixed(2)}/hr
-                </p>
+                <div style="background: #f8f9fa; padding: 10px 12px; border-radius: 8px; margin-bottom: 12px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span style="color: #666; font-size: 13px;">Status</span>
+                        <strong style="color: ${color}; font-size: 13px;">${isSoon ? 'Available Soon' : 'Available Now'}</strong>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 6px;">
+                        <span style="color: #666; font-size: 13px;">Rate</span>
+                        <strong style="color: #333; font-size: 14px;">$${meter.priceVal.toFixed(2)}/hr</strong>
+                    </div>
+                </div>
 
-                <div style="margin-top: 10px;">
+                <div style="margin-bottom: 8px;">
                     ${buttonsHtml}
                 </div>
-                ${isSoon ? '<div style="margin-top:8px; font-size:10px; color:#7c4dff; text-align:center;">💎 Premium required to reserve</div>' : '<div style="margin-top:8px; font-size:10px; color:#7c4dff; text-align:center;">💎 Hold & Reserve Later require Premium</div>'}
+                ${isSoon ? '<div style="padding: 8px 10px; background: linear-gradient(135deg, rgba(102,126,234,0.1) 0%, rgba(118,75,162,0.1) 100%); border-radius: 6px; font-size: 11px; color: #667eea; text-align: center;">💎 Premium required to reserve</div>' : '<div style="padding: 8px 10px; background: linear-gradient(135deg, rgba(102,126,234,0.1) 0%, rgba(118,75,162,0.1) 100%); border-radius: 6px; font-size: 11px; color: #667eea; text-align: center;">💎 Hold & Reserve Later require Premium</div>'}
             </div>
         `;
 
