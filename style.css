@@ -82,9 +82,9 @@ body.dark-mode .premium-text {
     /* Gold for premium */
 }
 
-/* Premium upgrade button - darker gold with white text in dark mode for readability */
+/* Premium upgrade button - vibrant amber with white text in dark mode for readability */
 body.dark-mode #premium-btn {
-    background: #c9a000 !important;
+    background: #f5a623 !important;
     color: white !important;
 }
 
