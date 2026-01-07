@@ -82,6 +82,12 @@ body.dark-mode .premium-text {
     /* Gold for premium */
 }
 
+/* Premium upgrade button - darker gold with white text in dark mode for readability */
+body.dark-mode #premium-btn {
+    background: #c9a000 !important;
+    color: white !important;
+}
+
 /* Switch Styling */
 .switch {
     position: relative;
