@@ -1,4 +1,11 @@
 /* The Parkinator - Real World Edition (v4) */
+
+// Stub functions to prevent "not defined" errors if toggles are clicked before script fully loads
+window.toggleLanguage = window.toggleLanguage || (() => { });
+window.toggleTheme = window.toggleTheme || (() => { });
+window.toggleUnits = window.toggleUnits || (() => { });
+window.toggleSettings = window.toggleSettings || (() => { });
+
 window.onerror = function (msg, url, line) {
     const el = document.getElementById('stats');
     if (el) el.innerHTML = `<div style="background:#ffcccc;color:red;padding:10px;border-radius:8px;"><b>Error:</b> ${msg}<br>Line: ${line}</div>`;
@@ -29,18 +36,122 @@ function updatePremiumUI() {
     const statusEl = document.getElementById('premium-status');
     const btnEl = document.getElementById('premium-btn');
 
+    const isSpanish = window.isSpanish || false;
 
     if (statusEl) {
-        statusEl.innerHTML = window.isPremium
-            ? 'Status: <b style="color:#d93025;">Premium 💎</b>'
-            : 'Status: <b>Free</b>';
+        if (window.isPremium) {
+            statusEl.innerHTML = isSpanish
+                ? 'Estado: <b style="color:#d93025;">Premium 💎</b>'
+                : 'Status: <b style="color:#d93025;">Premium 💎</b>';
+        } else {
+            statusEl.innerHTML = isSpanish
+                ? 'Estado: <b>Gratis</b>'
+                : 'Status: <b>Free</b>';
+        }
     }
     if (btnEl) {
-        btnEl.innerText = window.isPremium ? '✓ Premium Active' : '💎 Upgrade ($5)';
+        if (window.isPremium) {
+            btnEl.innerText = isSpanish ? '✓ Premium Activo' : '✓ Premium Active';
+        } else {
+            btnEl.innerText = isSpanish ? '💎 Mejorar ($5)' : '💎 Upgrade ($5)';
+        }
         btnEl.style.background = window.isPremium ? '#34a853' : '#fbbc04';
     }
-
 }
+
+// ==================== LANGUAGE SYSTEM ====================
+window.isSpanish = localStorage.getItem('loomis_spanish') === 'true';
+
+const translations = {
+    // Settings Panel
+    settings: { en: 'Settings', es: 'Configuración' },
+    darkMode: { en: 'Dark Mode', es: 'Modo Oscuro' },
+    units: { en: 'Units (KM)', es: 'Unidades (KM)' },
+    spanish: { en: 'Español', es: 'Español' },
+    status: { en: 'Status: <b>Free</b>', es: 'Estado: <b>Gratis</b>' },
+    statusPremium: { en: 'Status: <b style="color:#d93025;">Premium 💎</b>', es: 'Estado: <b style="color:#d93025;">Premium 💎</b>' },
+    upgrade: { en: '💎 Upgrade ($5)', es: '💎 Mejorar ($5)' },
+    premiumActive: { en: '✓ Premium Active', es: '✓ Premium Activo' },
+
+    // Stats Panel
+    visible: { en: 'VISIBLE', es: 'VISIBLES' },
+    available: { en: 'AVAILABLE', es: 'DISPONIBLES' },
+    smartFind: { en: '✨ SMART FIND', es: '✨ BÚSQUEDA INTELIGENTE' },
+    closest: { en: '📍 Closest', es: '📍 Más Cercano' },
+    cheapest: { en: '💲 Cheapest', es: '💲 Más Barato' },
+    bestPrice: { en: 'Best Price:', es: 'Mejor Precio:' },
+    myReservations: { en: 'My Reservations', es: 'Mis Reservas' },
+
+    // InfoWindow / Popups
+    spaceId: { en: 'Space', es: 'Espacio' },
+    statusLabel: { en: 'Status', es: 'Estado' },
+    rate: { en: 'Rate', es: 'Tarifa' },
+    availableNow: { en: 'Available Now', es: 'Disponible Ahora' },
+    availableSoon: { en: 'Available Soon', es: 'Disponible Pronto' },
+    reserveNow: { en: '✓ Reserve Now', es: '✓ Reservar Ahora' },
+    hold10Min: { en: '💎 Hold 10 Min', es: '💎 Guardar 10 Min' },
+    reserveLater: { en: '💎 Reserve Later', es: '💎 Reservar Después' },
+    premiumRequired: { en: '💎 Premium required to reserve', es: '💎 Se requiere Premium para reservar' },
+    holdReservePremium: { en: '💎 Hold & Reserve Later require Premium', es: '💎 Guardar y Reservar Después requieren Premium' },
+
+    // Alerts & Messages
+    searchPlaceholder: { en: 'Search for a location...', es: 'Buscar una ubicación...' },
+    zoomIn: { en: 'Zoom In', es: 'Acercar' },
+    noParking: { en: 'No parking found.', es: 'No se encontró estacionamiento.' },
+    loading: { en: 'Loading data...', es: 'Cargando datos...' },
+    dbReady: { en: 'DB Ready.', es: 'BD Lista.' },
+    selectedLocation: { en: 'Selected Location', es: 'Ubicación Seleccionada' },
+    lookingNearPin: { en: '*Looking near pin', es: '*Buscando cerca del marcador' },
+
+    // Premium Popups
+    premiumFeature: { en: 'Premium Feature', es: 'Función Premium' },
+    upgradeToPremium: { en: 'Upgrade to Premium', es: 'Mejorar a Premium' },
+    welcomePremium: { en: 'Welcome to Premium!', es: '¡Bienvenido a Premium!' },
+    awesome: { en: 'Awesome!', es: '¡Genial!' },
+    notNow: { en: 'Not Now', es: 'Ahora No' },
+    subscribe: { en: 'Subscribe 💎', es: 'Suscribirse 💎' },
+    cancel: { en: 'Cancel', es: 'Cancelar' },
+    yesSubscribe: { en: 'Yes, Subscribe!', es: '¡Sí, Suscribirse!' }
+};
+
+function applyTranslations() {
+    const lang = window.isSpanish ? 'es' : 'en';
+
+    // Translate elements with data-i18n attribute
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+        const key = el.getAttribute('data-i18n');
+        if (translations[key]) {
+            el.innerHTML = translations[key][lang];
+        }
+    });
+
+    // Update search placeholder
+    const searchInput = document.getElementById('pac-input');
+    if (searchInput) {
+        searchInput.placeholder = translations.searchPlaceholder[lang];
+    }
+
+    // Update premium UI with correct language
+    updatePremiumUI();
+}
+
+window.toggleLanguage = () => {
+    window.isSpanish = !window.isSpanish;
+    localStorage.setItem('loomis_spanish', window.isSpanish.toString());
+    applyTranslations();
+
+    // Refresh stats panel if map is loaded
+    if (map && GlobalMarkerElement) {
+        updateMap(GlobalMarkerElement);
+    }
+};
+
+// Initialize language on load
+window.addEventListener('load', () => {
+    const toggle = document.getElementById('spanish-toggle');
+    if (toggle) toggle.checked = window.isSpanish;
+    if (window.isSpanish) applyTranslations();
+});
 
 
 
@@ -233,6 +344,8 @@ async function getTimePlusHoursStr(hours) {
 
 // Time Picker Popup for Reservations
 window.showTimePickerPopup = async (spaceId, priceVal) => {
+    const isEs = window.isSpanish;
+
     // Fetch trusted time from API
     let currentTime;
     let usingFallback = false;
@@ -250,11 +363,9 @@ window.showTimePickerPopup = async (spaceId, priceVal) => {
     }
 
     // Calculate minimum time (2 hours from now)
-    // Calculate minimum time (2 hours from now)
     const minTime = new Date(currentTime.getTime() + (2 * 60 * 60 * 1000));
 
     // Format minTime for datetime-local input (YYYY-MM-DDTHH:mm)
-    // Adjust for timezone offset to ensure local time is correct in input
     const tzOffset = currentTime.getTimezoneOffset() * 60000;
     const minLocIso = new Date(minTime.getTime() - tzOffset).toISOString().slice(0, 16);
     const defaultsIso = new Date(minTime.getTime() - tzOffset).toISOString().slice(0, 16);
@@ -271,9 +382,8 @@ window.showTimePickerPopup = async (spaceId, priceVal) => {
     const currentTimeDisplay = currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     const minTimeDisplay = minTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-    // Dark mode colors - check body class directly for reliability
+    // Dark mode colors
     const darkModeActive = document.body.classList.contains('dark-mode');
-    console.log('Dark mode active:', darkModeActive);
     const popupBg = darkModeActive ? '#2c2c2c' : 'white';
     const popupText = darkModeActive ? '#e0e0e0' : '#333';
     const popupSubtext = darkModeActive ? '#aaa' : '#666';
@@ -281,14 +391,26 @@ window.showTimePickerPopup = async (spaceId, priceVal) => {
     const cancelBg = darkModeActive ? '#444' : '#f5f5f5';
     const cancelBorder = darkModeActive ? '#555' : '#ddd';
 
+    // Translated strings
+    const spaceLabel = isEs ? 'Espacio' : 'Space';
+    const rateLabel = isEs ? 'Tarifa' : 'Rate';
+    const reserveTitle = isEs ? `Reservar ${spaceLabel} ${spaceId}` : `Reserve ${spaceLabel} ${spaceId}`;
+    const timeVerified = isEs ? '✓ Hora verificada vía WorldTimeAPI' : '✓ Time verified via WorldTimeAPI';
+    const timeDevice = isEs ? '⚠️ Usando hora del dispositivo (API no disponible)' : '⚠️ Using device time (API unavailable)';
+    const currentTimeLabel = isEs ? 'Hora Actual' : 'Current Time';
+    const selectDateTime = isEs ? 'Seleccionar Fecha y Hora:' : 'Select Date & Time:';
+    const earliestAllowed = isEs ? `⏰ Más temprano permitido: ${minTimeDisplay} (Hoy)` : `⏰ Earliest allowed: ${minTimeDisplay} (Today)`;
+    const cancelBtn = isEs ? 'Cancelar' : 'Cancel';
+    const confirmBtn = isEs ? 'Confirmar Reserva' : 'Confirm Reservation';
+
     overlay.innerHTML = `
         <div style="
             background: ${popupBg}; border-radius: 16px; padding: 24px; max-width: 340px;
             box-shadow: 0 8px 32px rgba(0,0,0,0.3); text-align: center;
         ">
             <div style="font-size: 40px; margin-bottom: 8px;">🕐</div>
-            <h2 style="margin: 0 0 4px; color: ${popupText}; font-size: 20px;">Reserve Space ${spaceId}</h2>
-            <p style="color: ${popupSubtext}; font-size: 13px; margin: 0 0 12px;">Rate: <b>$${priceVal.toFixed(2)}/hr</b></p>
+            <h2 style="margin: 0 0 4px; color: ${popupText}; font-size: 20px;">${reserveTitle}</h2>
+            <p style="color: ${popupSubtext}; font-size: 13px; margin: 0 0 12px;">${rateLabel}: <b>$${priceVal.toFixed(2)}/hr</b></p>
             
             <div style="
                 background: ${usingFallback ? '#fff3cd' : '#e8f5e9'}; 
@@ -296,12 +418,12 @@ window.showTimePickerPopup = async (spaceId, priceVal) => {
                 padding: 8px; border-radius: 8px; margin-bottom: 12px; font-size: 12px;
                 color: ${usingFallback ? '#856404' : '#2e7d32'};
             ">
-                ${usingFallback ? '⚠️ Using device time (API unavailable)' : '✓ Time verified via WorldTimeAPI'}<br>
-                <b>Current Time:</b> ${currentTimeDisplay}
+                ${usingFallback ? timeDevice : timeVerified}<br>
+                <b>${currentTimeLabel}:</b> ${currentTimeDisplay}
             </div>
             
             <div style="text-align: left; margin-bottom: 12px;">
-                <label style="font-size: 13px; color: ${popupSubtext}; font-weight: bold;">Select Date & Time:</label>
+                <label style="font-size: 13px; color: ${popupSubtext}; font-weight: bold;">${selectDateTime}</label>
                 <input type="datetime-local" id="time-input" value="${defaultsIso}" min="${minLocIso}" style="
                     width: 100%; padding: 12px; margin-top: 6px;
                     border: 2px solid #1A73E8; border-radius: 8px;
@@ -309,7 +431,7 @@ window.showTimePickerPopup = async (spaceId, priceVal) => {
                     background: ${inputBg}; color: ${popupText};
                 ">
                 <div style="font-size: 11px; color: ${popupSubtext}; margin-top: 4px;">
-                    ⏰ Earliest allowed: ${minTimeDisplay} (Today)
+                    ${earliestAllowed}
                 </div>
             </div>
             
@@ -317,11 +439,11 @@ window.showTimePickerPopup = async (spaceId, priceVal) => {
                 <button id="time-cancel-btn" style="
                     flex: 1; padding: 12px; border: 1px solid ${cancelBorder}; background: ${cancelBg};
                     border-radius: 8px; font-size: 14px; cursor: pointer; color: ${popupText};
-                ">Cancel</button>
+                ">${cancelBtn}</button>
                 <button id="time-confirm-btn" style="
                     flex: 1; padding: 12px; border: none; background: #1A73E8;
                     color: white; border-radius: 8px; font-size: 14px; font-weight: bold; cursor: pointer;
-                ">Confirm Reservation</button>
+                ">${confirmBtn}</button>
             </div>
         </div>
     `;
@@ -565,8 +687,11 @@ window.navigateToClosest = () => window.findSmartSpot(null, 'closest');
 
 // Update Stats with New Buttons
 function updateStats(meters, container) {
+    const lang = window.isSpanish ? 'es' : 'en';
+    const t = (key) => translations[key] ? translations[key][lang] : key;
+
     if (meters.length === 0) {
-        container.innerHTML = "No parking found.";
+        container.innerHTML = t('noParking');
         return;
     }
     const available = meters.filter(m => m.status === 'free');
@@ -576,17 +701,22 @@ function updateStats(meters, container) {
 
     let reservationHtml = '';
     if (myReservations.length > 0) {
+        const spaceLabel = window.isSpanish ? 'Espacio' : 'Space';
+        const goLabel = window.isSpanish ? 'IR' : 'GO';
+        const endLabel = window.isSpanish ? 'FIN' : 'END';
+
         let listHtml = myReservations.map((res, index) => `
             <div class="res-card">
-                <div style="font-size:10px;"><b>Space ${res.spaceid}</b></div>
+                <div style="font-size:10px;"><b>${spaceLabel} ${res.spaceid}</b></div>
                 <div style="display:flex; gap:4px; margin-top:4px;">
-                    <button onclick="navigateToReservation(${index})" style="background:#1A73E8; color:white; border:none; border-radius:3px; padding:2px 6px; font-size:9px;">GO</button>
-                    <button onclick="endReservation(${index})" style="background:#d93025; color:white; border:none; border-radius:3px; padding:2px 6px; font-size:9px;">END</button>
+                    <button onclick="navigateToReservation(${index})" style="background:#1A73E8; color:white; border:none; border-radius:3px; padding:2px 6px; font-size:9px;">${goLabel}</button>
+                    <button onclick="endReservation(${index})" style="background:#d93025; color:white; border:none; border-radius:3px; padding:2px 6px; font-size:9px;">${endLabel}</button>
                 </div>
             </div>`).join('');
 
+        const resLabel = window.isSpanish ? 'Mis Reservas' : 'My Reservations';
         reservationHtml = `<details open class="res-details">
-            <summary>My Reservations (${myReservations.length})</summary>
+            <summary>${resLabel} (${myReservations.length})</summary>
             <div style="padding:5px; max-height:150px; overflow-y:auto;">${listHtml}</div>
         </details>`;
     }
@@ -594,19 +724,19 @@ function updateStats(meters, container) {
     // New Dual Buttons
     reservationHtml += `
         <div class="smart-find-box">
-             <div class="sf-label" style="font-size: 11px; font-weight: 600; letter-spacing: 0.5px; margin-bottom: 8px;">✨ SMART FIND</div>
+             <div class="sf-label" style="font-size: 11px; font-weight: 600; letter-spacing: 0.5px; margin-bottom: 8px;">${t('smartFind')}</div>
              <div style="display:flex; gap:8px; margin-bottom: 10px;">
-                  <button onclick="navigateToClosest()" class="nav-btn-light" style="display: flex; align-items: center; justify-content: center; gap: 4px;">📍 Closest</button>
-                  <button onclick="navigateToCheapest()" class="nav-btn-blue" style="display: flex; align-items: center; justify-content: center; gap: 4px;">💲 Cheapest</button>
+                  <button onclick="navigateToClosest()" class="nav-btn-light" style="display: flex; align-items: center; justify-content: center; gap: 4px;">${t('closest')}</button>
+                  <button onclick="navigateToCheapest()" class="nav-btn-blue" style="display: flex; align-items: center; justify-content: center; gap: 4px;">${t('cheapest')}</button>
              </div>
-             <div class="sf-price" style="font-size: 13px; padding: 6px 10px; background: rgba(24, 128, 56, 0.1); border-radius: 6px; display: inline-block;">Best Price: <b style="font-size: 15px;">${cheapDisp}</b></div>
+             <div class="sf-price" style="font-size: 13px; padding: 6px 10px; background: rgba(24, 128, 56, 0.1); border-radius: 6px; display: inline-block;">${t('bestPrice')} <b style="font-size: 15px;">${cheapDisp}</b></div>
         </div>
     `;
 
     container.innerHTML = `
         <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
-            <div><small>VISIBLE</small> <b>${meters.length}</b></div>
-            <div style="text-align:right;"><small>AVAILABLE</small> <b style="color:#34C759;">${available.length}</b></div>
+            <div><small>${t('visible')}</small> <b>${meters.length}</b></div>
+            <div style="text-align:right;"><small>${t('available')}</small> <b style="color:#34C759;">${available.length}</b></div>
         </div>
         ${reservationHtml}
     `;
@@ -691,6 +821,19 @@ function renderMarkers(data, AdvancedMarkerElement) {
 
             marker.addListener('click', () => {
                 const isSoon = (meter.status === 'soon');
+                const isEs = window.isSpanish;
+
+                // Translated strings
+                const spaceLabel = isEs ? 'Espacio' : 'Space';
+                const statusLabel = isEs ? 'Estado' : 'Status';
+                const rateLabel = isEs ? 'Tarifa' : 'Rate';
+                const availNow = isEs ? 'Disponible Ahora' : 'Available Now';
+                const availSoon = isEs ? 'Disponible Pronto' : 'Available Soon';
+                const reserveNowBtn = isEs ? '✓ Reservar Ahora' : '✓ Reserve Now';
+                const hold10Btn = isEs ? '💎 Guardar 10 Min' : '💎 Hold 10 Min';
+                const reserveLaterBtn = isEs ? '💎 Reservar Después' : '💎 Reserve Later';
+                const premReqText = isEs ? '💎 Se requiere Premium para reservar' : '💎 Premium required to reserve';
+                const holdReqText = isEs ? '💎 Guardar y Reservar Después requieren Premium' : '💎 Hold & Reserve Later require Premium';
 
                 let buttonsHtml = '';
 
@@ -699,7 +842,7 @@ function renderMarkers(data, AdvancedMarkerElement) {
                     buttonsHtml = `
                         <button onclick="if(!window.isPremium){showPremiumRequiredPopup();}else{showTimePickerPopup('${meter.spaceid}', ${meter.priceVal});}" 
                             style="flex: 1; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; padding: 10px; border-radius: 6px; font-weight: bold; cursor: pointer;">
-                            💎 Reserve Later
+                            ${reserveLaterBtn}
                         </button>
                     `;
                 } else {
@@ -708,16 +851,16 @@ function renderMarkers(data, AdvancedMarkerElement) {
                         <div style="display: flex; flex-direction: column; gap: 8px; width: 100%;">
                             <button onclick="reserveNow('${meter.spaceid}')" 
                                 style="width: 100%; background: #34C759; color: white; border: none; padding: 12px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 14px;">
-                                ✓ Reserve Now
+                                ${reserveNowBtn}
                             </button>
                             <div style="display: flex; gap: 8px;">
                                 <button onclick="if(!window.isPremium){showPremiumRequiredPopup();}else{holdSpotFor10Min('${meter.spaceid}', ${meter.priceVal});}" 
                                     style="flex: 1; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; padding: 10px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 12px;">
-                                    💎 Hold 10 Min
+                                    ${hold10Btn}
                                 </button>
                                 <button onclick="if(!window.isPremium){showPremiumRequiredPopup();}else{showTimePickerPopup('${meter.spaceid}', ${meter.priceVal});}" 
                                     style="flex: 1; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; padding: 10px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 12px;">
-                                    💎 Reserve Later
+                                    ${reserveLaterBtn}
                                 </button>
                             </div>
                         </div>
@@ -727,16 +870,16 @@ function renderMarkers(data, AdvancedMarkerElement) {
                 const content = `
             <div style="padding: 14px; min-width: 240px;">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 8px;">
-                    <h3 style="margin: 0; color: #333; font-size: 18px; font-weight: 600;">Space ${meter.spaceid}</h3>
+                    <h3 style="margin: 0; color: #333; font-size: 18px; font-weight: 600;">${spaceLabel} ${meter.spaceid}</h3>
                     <div style="cursor:pointer; padding: 4px 8px; border-radius: 4px; background: #f5f5f5; font-size: 12px;" onclick="activeInfoWindow.close()">✕</div>
                 </div>
                 <div style="background: #f8f9fa; padding: 10px 12px; border-radius: 8px; margin-bottom: 12px;">
                     <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <span style="color: #666; font-size: 13px;">Status</span>
-                        <strong style="color: ${color}; font-size: 13px;">${isSoon ? 'Available Soon' : 'Available Now'}</strong>
+                        <span style="color: #666; font-size: 13px;">${statusLabel}</span>
+                        <strong style="color: ${color}; font-size: 13px;">${isSoon ? availSoon : availNow}</strong>
                     </div>
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 6px;">
-                        <span style="color: #666; font-size: 13px;">Rate</span>
+                        <span style="color: #666; font-size: 13px;">${rateLabel}</span>
                         <strong style="color: #333; font-size: 14px;">$${meter.priceVal.toFixed(2)}/hr</strong>
                     </div>
                 </div>
@@ -744,7 +887,7 @@ function renderMarkers(data, AdvancedMarkerElement) {
                 <div style="margin-bottom: 8px;">
                     ${buttonsHtml}
                 </div>
-                ${isSoon ? '<div style="padding: 8px 10px; background: linear-gradient(135deg, rgba(102,126,234,0.1) 0%, rgba(118,75,162,0.1) 100%); border-radius: 6px; font-size: 11px; color: #667eea; text-align: center;">💎 Premium required to reserve</div>' : '<div style="padding: 8px 10px; background: linear-gradient(135deg, rgba(102,126,234,0.1) 0%, rgba(118,75,162,0.1) 100%); border-radius: 6px; font-size: 11px; color: #667eea; text-align: center;">💎 Hold & Reserve Later require Premium</div>'}
+                ${isSoon ? `<div style="padding: 8px 10px; background: linear-gradient(135deg, rgba(102,126,234,0.1) 0%, rgba(118,75,162,0.1) 100%); border-radius: 6px; font-size: 11px; color: #667eea; text-align: center;">${premReqText}</div>` : `<div style="padding: 8px 10px; background: linear-gradient(135deg, rgba(102,126,234,0.1) 0%, rgba(118,75,162,0.1) 100%); border-radius: 6px; font-size: 11px; color: #667eea; text-align: center;">${holdReqText}</div>`}
             </div>
         `;
 
@@ -838,6 +981,8 @@ function showCancelPremiumPopup() {
 }
 
 function showPayPopup() {
+    const isEs = window.isSpanish;
+
     // Create overlay
     const overlay = document.createElement('div');
     overlay.id = 'pay-popup-overlay';
@@ -855,6 +1000,14 @@ function showPayPopup() {
     const cancelBg = darkModeActive ? '#444' : '#f5f5f5';
     const cancelBorder = darkModeActive ? '#555' : '#ddd';
 
+    // Translated strings
+    const title = isEs ? 'Mejorar a Premium' : 'Upgrade to Premium';
+    const desc = isEs ? '¡Desbloquea reservas futuras y espacios "Disponible Pronto"!' : 'Unlock future reservations and "Available Soon" spots!';
+    const cancelBtn = isEs ? 'Cancelar' : 'Cancel';
+    const yesBtn = isEs ? '¡Sí, Suscribirse!' : 'Yes, Subscribe!';
+    const demoNote = isEs ? '(DEMO: Haz clic en Sí para activar)' : '(DEMO: Click Yes to activate)';
+    const monthLabel = isEs ? '/mes' : '/month';
+
     // Create popup
     overlay.innerHTML = `
         <div style="
@@ -862,27 +1015,27 @@ function showPayPopup() {
             box-shadow: 0 8px 32px rgba(0,0,0,0.3); text-align: center;
         ">
             <div style="font-size: 48px; margin-bottom: 12px;">💎</div>
-            <h2 style="margin: 0 0 8px; color: ${popupText}; font-size: 22px;">Upgrade to Premium</h2>
+            <h2 style="margin: 0 0 8px; color: ${popupText}; font-size: 22px;">${title}</h2>
             <p style="color: ${popupSubtext}; font-size: 14px; margin: 0 0 16px;">
-                Unlock future reservations and "Available Soon" spots!
+                ${desc}
             </p>
             <div style="
                 background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
                 color: white; padding: 12px; border-radius: 8px; margin-bottom: 16px;
             ">
-                <div style="font-size: 28px; font-weight: bold;">$5<span style="font-size: 14px;">/month</span></div>
+                <div style="font-size: 28px; font-weight: bold;">$9.99<span style="font-size: 14px;">${monthLabel}</span></div>
             </div>
             <div style="display: flex; gap: 10px;">
                 <button id="pay-cancel-btn" style="
                     flex: 1; padding: 12px; border: 1px solid ${cancelBorder}; background: ${cancelBg};
                     border-radius: 8px; font-size: 14px; cursor: pointer; color: ${popupText};
-                ">Cancel</button>
+                ">${cancelBtn}</button>
                 <button id="pay-yes-btn" style="
                     flex: 1; padding: 12px; border: none; background: #34a853;
                     color: white; border-radius: 8px; font-size: 14px; font-weight: bold; cursor: pointer;
-                ">Yes, Subscribe!</button>
+                ">${yesBtn}</button>
             </div>
-            <p style="color: ${popupSubtext}; font-size: 11px; margin: 12px 0 0;">(DEMO: Click Yes to activate)</p>
+            <p style="color: ${popupSubtext}; font-size: 11px; margin: 12px 0 0;">${demoNote}</p>
         </div>
     `;
 
@@ -908,6 +1061,8 @@ function showPayPopup() {
 }
 
 function showSuccessPopup() {
+    const isEs = window.isSpanish;
+
     // Create overlay
     const overlay = document.createElement('div');
     overlay.id = 'success-popup-overlay';
@@ -922,6 +1077,13 @@ function showSuccessPopup() {
     const popupBg = darkModeActive ? '#2c2c2c' : 'white';
     const popupSubtext = darkModeActive ? '#aaa' : '#666';
 
+    // Translated strings
+    const title = isEs ? '¡Bienvenido a Premium!' : 'Welcome to Premium!';
+    const desc = isEs
+        ? 'Has desbloqueado funciones exclusivas:<br><b>Reservas Futuras</b> & <b>Reserva Disp. Pronto</b>'
+        : 'You\'ve unlocked exclusive features:<br><b>Future Reservations</b> & <b>Avail. Soon Booking</b>';
+    const awesomeBtn = isEs ? '¡Genial!' : 'Awesome!';
+
     overlay.innerHTML = `
         <div style="
             background: ${popupBg}; border-radius: 16px; padding: 32px; max-width: 320px;
@@ -929,16 +1091,15 @@ function showSuccessPopup() {
             animation: popIn 0.3s ease-out;
         ">
             <div style="font-size: 64px; margin-bottom: 16px;">🎉</div>
-            <h2 style="margin: 0 0 8px; color: #34a853; font-size: 24px;">Welcome to Premium!</h2>
+            <h2 style="margin: 0 0 8px; color: #34a853; font-size: 24px;">${title}</h2>
             <p style="color: ${popupSubtext}; font-size: 15px; margin: 0 0 24px; line-height: 1.5;">
-                You've unlocked exclusive features:<br>
-                <b>Future Reservations</b> & <b>Avail. Soon Booking</b>
+                ${desc}
             </p>
             <button id="success-close-btn" style="
                 width: 100%; padding: 14px; border: none; background: #34a853;
                 color: white; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer;
                 box-shadow: 0 4px 6px rgba(52, 168, 83, 0.3);
-            ">Awesome!</button>
+            ">${awesomeBtn}</button>
         </div>
         <style>
             @keyframes popIn {
@@ -1090,6 +1251,8 @@ window.holdSpotFor10Min = async (spaceId, priceVal) => {
 };
 
 function showPremiumRequiredPopup() {
+    const isEs = window.isSpanish;
+
     // Create overlay
     const overlay = document.createElement('div');
     overlay.id = 'premium-required-overlay';
@@ -1107,31 +1270,40 @@ function showPremiumRequiredPopup() {
     const cancelBg = darkModeActive ? '#444' : '#f5f5f5';
     const cancelBorder = darkModeActive ? '#555' : '#ddd';
 
+    // Translated strings
+    const title = isEs ? 'Función Premium' : 'Premium Feature';
+    const desc = isEs
+        ? 'Reservar espacios <b>"Disponible Pronto"</b> y <b>reservas futuras</b> requiere una suscripción Premium.'
+        : 'Reserving <b>"Available Soon"</b> spots and <b>future bookings</b> requires a Premium subscription.';
+    const priceNote = isEs ? '💡 Suscríbete a Premium por solo <b>$9.99/mes</b>' : '💡 Subscribe to Premium for just <b>$9.99/month</b>';
+    const notNowBtn = isEs ? 'Ahora No' : 'Not Now';
+    const subscribeBtn = isEs ? 'Suscribirse 💎' : 'Subscribe 💎';
+
     overlay.innerHTML = `
         <div style="
             background: ${popupBg}; border-radius: 16px; padding: 24px; max-width: 320px;
             box-shadow: 0 8px 32px rgba(0,0,0,0.3); text-align: center;
         ">
             <div style="font-size: 48px; margin-bottom: 12px;">🔒</div>
-            <h2 style="margin: 0 0 8px; color: ${popupText}; font-size: 20px;">Premium Feature</h2>
+            <h2 style="margin: 0 0 8px; color: ${popupText}; font-size: 20px;">${title}</h2>
             <p style="color: ${popupSubtext}; font-size: 14px; margin: 0 0 16px; line-height: 1.5;">
-                Reserving <b>"Available Soon"</b> spots and <b>future bookings</b> requires a Premium subscription.
+                ${desc}
             </p>
             <div style="
                 background: #fff3cd; border: 1px solid #ffc107; padding: 10px;
                 border-radius: 8px; margin-bottom: 16px; font-size: 13px; color: #856404;
             ">
-                💡 Subscribe to Premium for just <b>$5/month</b>
+                ${priceNote}
             </div>
             <div style="display: flex; gap: 10px;">
                 <button id="prem-req-cancel" style="
                     flex: 1; padding: 12px; border: 1px solid ${cancelBorder}; background: ${cancelBg};
                     border-radius: 8px; font-size: 14px; cursor: pointer; color: ${popupText};
-                ">Not Now</button>
+                ">${notNowBtn}</button>
                 <button id="prem-req-subscribe" style="
                     flex: 1; padding: 12px; border: none; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
                     color: white; border-radius: 8px; font-size: 14px; font-weight: bold; cursor: pointer;
-                ">Subscribe 💎</button>
+                ">${subscribeBtn}</button>
             </div>
         </div>
     `;
