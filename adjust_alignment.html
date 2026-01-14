@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Adjust Alignment - Tool</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: #333;
+        }
+
+        #fake-map {
+            width: 100%;
+            height: 100vh;
+            position: relative;
+            overflow: hidden;
+        }
+
+        #map-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+            object-fit: fill;
+        }
+
+        #spots-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 10;
+            pointer-events: none;
+        }
+
+        .spot {
+            position: absolute;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: rgba(255, 0, 0, 0.5);
+            /* Red for visibility during edit */
+            border: 1px solid white;
+            box-shadow: 0 0 2px black;
+            transform: translate(-50%, -50%);
+        }
+
+        #controls-panel {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            font-family: sans-serif;
+            z-index: 1000;
+        }
+
+        button {
+            cursor: pointer;
+            padding: 5px 10px;
+            margin: 2px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="fake-map">
+        <!-- Using the parking layout image as background -->
+        <img id="map-overlay" src="parking-layout.jpg">
+        <div id="spots-container"></div>
+    </div>
+
+    <div id="controls-panel">
+        <h3>Alignment Debugger</h3>
+        <p>Use Arrow Keys to nudge spots.</p>
+        <p>Shift+Arrow to nudge 10px.</p>
+        <div id="values">
+            X Offset: <span id="x-off">0</span>px<br>
+            Y Offset: <span id="y-off">0</span>px
+        </div>
+        <p><small style="color:#aaa">Press Enter to log final values</small></p>
+    </div>
+
+    <!-- Load spot definitions -->
+    <script src="demo-app.js"></script>
+
+    <script>
+        let xOffset = 0;
+        let yOffset = 0;
+        const container = document.getElementById('spots-container');
+        const xDisp = document.getElementById('x-off');
+        const yDisp = document.getElementById('y-off');
+
+        // Render spots (simplified version of renderSpots)
+        function renderSpotsDebug() {
+            container.innerHTML = '';
+            // spotDefinitions comes from demo-app.js
+            if (typeof spotDefinitions === 'undefined') {
+                alert('Error: spotDefinitions not found. Make sure demo-app.js is available.');
+                return;
+            }
+
+            spotDefinitions.forEach(spot => {
+                const el = document.createElement('div');
+                el.className = 'spot';
+                el.style.left = spot.left + '%';
+                el.style.top = spot.top + '%';
+                container.appendChild(el);
+            });
+        }
+
+        function updateTransform() {
+            container.style.transform = `translate(${xOffset}px, ${yOffset}px)`;
+            xDisp.textContent = xOffset;
+            yDisp.textContent = yOffset;
+        }
+
+        document.addEventListener('keydown', (e) => {
+            const step = e.shiftKey ? 10 : 1;
+            switch (e.key) {
+                case 'ArrowLeft': xOffset -= step; break;
+                case 'ArrowRight': xOffset += step; break;
+                case 'ArrowUp': yOffset -= step; break;
+                case 'ArrowDown': yOffset += step; break;
+                case 'Enter':
+                    console.log(`Final Offsets: X=${xOffset}, Y=${yOffset}`);
+                    alert(`Final Offsets:\nX: ${xOffset}\nY: ${yOffset}\n\nTell the assistant these values!`);
+                    break;
+                default: return; // exit handler
+            }
+            updateTransform();
+            e.preventDefault();
+        });
+
+        // Init
+        window.addEventListener('load', renderSpotsDebug);
+    </script>
+</body>
+
+</html>
