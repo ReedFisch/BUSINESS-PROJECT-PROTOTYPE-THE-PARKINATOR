@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Loomis Park - Auto Reserve</title>
+    <link rel="icon" type="image/png" href="spot_scout_logo.png">
+    <link rel="stylesheet" href="style.css?v=7">
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        #fake-map {
+            width: 100%;
+            height: 100vh;
+            background: #b8a4d6;
+            /* Purple tint to match annotated image */
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* SATELLITE OVERLAY - annotated image */
+        #satellite-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: url('satellite-overlay.jpg') center center;
+            background-size: cover;
+            opacity: 0.85;
+            z-index: 1;
+            pointer-events: none;
+        }
+
+        #satellite-overlay.hidden {
+            display: none;
+        }
+
+        /* Simple Circle Spots */
+        .spot {
+            position: absolute;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            border: 1.5px solid rgba(255, 255, 255, 0.95);
+            cursor: pointer;
+            transition: transform 0.1s ease;
+            z-index: 20;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+            transform: translate(-50%, -50%);
+        }
+
+        .spot:hover {
+            transform: scale(1.8);
+            z-index: 100;
+        }
+
+        .spot.free {
+            background: rgba(57, 255, 20, 0.85);
+            /* Neon Green, translucent */
+            box-shadow: 0 0 5px rgba(57, 255, 20, 0.6);
+            border-color: rgba(255, 255, 255, 0.8);
+        }
+
+        .spot.taken {
+            background: rgba(255, 0, 0, 0.85);
+            /* Neon Red */
+            opacity: 1;
+            /* Reset opacity, control via rgba */
+            box-shadow: 0 0 5px rgba(255, 0, 0, 0.6);
+            border-color: rgba(255, 255, 255, 0.8);
+        }
+
+        .spot.soon {
+            background: rgba(255, 255, 0, 0.85);
+            /* Neon Yellow */
+            box-shadow: 0 0 5px rgba(255, 255, 0, 0.6);
+            border-color: rgba(255, 255, 255, 0.8);
+        }
+
+        .spot.reserved {
+            background: rgba(123, 31, 162, 0.85);
+        }
+
+        /* Popup */
+        .popup-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.6);
+            z-index: 9999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .popup-card {
+            background: white;
+            border-radius: 14px;
+            padding: 18px;
+            max-width: 280px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+
+        body.dark-mode .popup-card {
+            background: #2c2c2c;
+            color: #e0e0e0;
+        }
+
+        /* Verification Boxes */
+        .verify-box {
+            position: absolute;
+            z-index: 1000;
+            /* Above everything */
+            pointer-events: none;
+            /* Let clicks pass through */
+        }
+
+        .verify-box-regular {
+            background-color: rgba(255, 165, 0, 0.5);
+            /* Orange, 50% opacity */
+            border: 1px solid orange;
+        }
+
+        .verify-box-disability {
+            background-color: rgba(128, 0, 128, 0.5);
+            /* Purple, 50% opacity */
+            border: 1px solid purple;
+        }
+
+        /* Overlay toggle */
+        #overlay-control {
+            position: fixed;
+            bottom: 10px;
+            left: 10px;
+            background: white;
+            padding: 6px 10px;
+            border-radius: 6px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+            z-index: 1000;
+            font-size: 11px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="top-left-container"
+        style="display:flex; margin:8px; flex-direction:column; gap:6px; align-items:flex-start; position:fixed; top:0; left:0; z-index: 100;">
+        <div
+            style="background:white; padding:5px 8px; border-radius:8px; box-shadow:0 2px 6px rgba(0,0,0,0.3); display:flex; align-items:center; gap:8px;">
+            <button onclick="toggleSettings()"
+                style="background:none; border:none; font-size:18px; cursor:pointer; color:#555;">☰</button>
+            <div style="width:1px; height:18px; background:#ddd;"></div>
+            <img src="spot_scout_logo.png" alt="Logo" style="width:24px; height:24px; border-radius:5px;">
+            <h1 style="margin:0; font-size:13px; color:#333;">Auto Reserve</h1>
+        </div>
+
+        <div id="settings-panel"
+            style="display:none; background:white; padding:10px; border-radius:8px; box-shadow:0 4px 12px rgba(0,0,0,0.15); width:160px;">
+            <div style="font-weight:bold; margin-bottom:8px; font-size:9px; text-transform:uppercase; color:#888;">
+                Settings</div>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                <span style="font-size:12px;">Dark Mode</span>
+                <label class="switch"><input type="checkbox" id="dark-mode-toggle" onchange="toggleTheme()"><span
+                        class="slider round"></span></label>
+            </div>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                <span style="font-size:12px;">Admin Mode</span>
+                <label class="switch"><input type="checkbox" id="admin-mode-toggle" onchange="toggleAdminMode()"><span
+                        class="slider round"></span></label>
+            </div>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                <span style="font-size:12px;">Edit Start Location</span>
+                <label class="switch"><input type="checkbox" id="edit-loc-toggle" onchange="toggleEditLocation()"><span
+                        class="slider round"></span></label>
+            </div>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                <span style="font-size:12px;">Draw Path Manually</span>
+                <label class="switch"><input type="checkbox" id="draw-mode-toggle" onchange="toggleDrawMode()"><span
+                        class="slider round"></span></label>
+            </div>
+
+            <div id="premium-container" style="text-align:center;">
+                <div id="premium-status" style="font-size:10px; color:#555; margin-bottom:5px;">Status: <b>Free</b>
+                </div>
+                <button onclick="upgradePremium()" id="premium-btn"
+                    style="width:100%; background:#fbbc04; color:#333; border:none; padding:5px; border-radius:4px; font-weight:bold; cursor:pointer; font-size:10px;">💎
+                    Upgrade</button>
+            </div>
+        </div>
+
+        <div
+            style="background:white; padding:5px 10px; border-radius:12px; box-shadow:0 2px 6px rgba(0,0,0,0.3); font-size:10px; color:#333;">
+            📍 <b>4400 Business Park</b>
+        </div>
+    </div>
+
+    <div id="fake-map">
+        <!-- PROCEDURAL MAP OVERLAY -->
+        <!-- PROCEDURAL MAP OVERLAY (STATIC) -->
+        <!-- PROCEDURAL MAP OVERLAY (STATIC) -->
+        <img id="map-overlay" src="new_parking_map.png"
+            style="position:absolute; top:0; left:0; width:100%; height:100%; z-index:0; background:#b0bec5; object-fit: fill;">
+
+        <!-- SATELLITE OVERLAY - Annotated image with visible orange boxes -->
+        <div id="satellite-overlay" class="hidden"></div>
+
+        <!-- PATH OVERLAY -->
+        <svg id="path-overlay" viewBox="0 0 100 100" preserveAspectRatio="none"
+            style="position:absolute; top:0; left:0; width:100%; height:100%; z-index:10; pointer-events:none;"></svg>
+
+        <!-- PARKING SPOTS - positioned to match orange boxes -->
+        <div id="spots-container"></div>
+    </div>
+
+    <!-- Overlay Toggle -->
+    <div id="overlay-control">
+        <input type="checkbox" id="show-overlay" onchange="toggleOverlay()">
+        <label for="show-overlay">Show Satellite</label>
+    </div>
+
+    <div id="controls">
+        <div id="stats">Loading...</div>
+    </div>
+
+    <script>
+        function toggleOverlay() {
+            const overlay = document.getElementById('satellite-overlay');
+            const checkbox = document.getElementById('show-overlay');
+            overlay.classList.toggle('hidden', !checkbox.checked);
+        }
+    </script>
+    <script src="auto-reserve-app.js?v=1"></script>
+</body>
+
+</html>

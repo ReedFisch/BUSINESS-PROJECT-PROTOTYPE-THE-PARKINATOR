@@ -1,0 +1,1414 @@
+/* The Parkinator - Auto Reserve Version */
+// Enable auto-reserve functionality
+window.autoReserve = true;
+
+/* The Parkinator - Real World Edition (v4) */
+
+// Stub functions to prevent "not defined" errors if toggles are clicked before script fully loads
+window.toggleLanguage = window.toggleLanguage || (() => { });
+window.toggleTheme = window.toggleTheme || (() => { });
+window.toggleUnits = window.toggleUnits || (() => { });
+window.toggleSettings = window.toggleSettings || (() => { });
+
+window.onerror = function (msg, url, line) {
+    const el = document.getElementById('stats');
+    if (el) el.innerHTML = `<div style="background:#ffcccc;color:red;padding:10px;border-radius:8px;"><b>Error:</b> ${msg}<br>Line: ${line}</div>`;
+};
+console.log("App v4 starting...");
+/* Strategy: Local DB + Pricing + Multi-Reservations + WorldTimeAPI + Mobile UX */
+
+let map;
+let allMarkers = [];
+let parkingDatabase = [];
+const ZOOM_THRESHOLD = 15;
+const PRICE_VISIBILITY_ZOOM = 16; // Approx. 0.5 mile view on mobile
+
+let activeInfoWindow = null;
+let destinationMarker = null;
+window.searchDestination = null;
+
+
+// State - Load from localStorage
+window.isPremium = localStorage.getItem('loomis_premium') === 'true';
+
+// Initialize premium UI on load
+window.addEventListener('load', () => {
+    updatePremiumUI();
+});
+
+function updatePremiumUI() {
+    const statusEl = document.getElementById('premium-status');
+    const btnEl = document.getElementById('premium-btn');
+
+    const isSpanish = window.isSpanish || false;
+
+    if (statusEl) {
+        if (window.isPremium) {
+            statusEl.innerHTML = isSpanish
+                ? 'Estado: <b style="color:#d93025;">Premium 💎</b>'
+                : 'Status: <b style="color:#d93025;">Premium 💎</b>';
+        } else {
+            statusEl.innerHTML = isSpanish
+                ? 'Estado: <b>Gratis</b>'
+                : 'Status: <b>Free</b>';
+        }
+    }
+    if (btnEl) {
+        if (window.isPremium) {
+            btnEl.innerText = isSpanish ? '✓ Premium Activo' : '✓ Premium Active';
+        } else {
+            btnEl.innerText = isSpanish ? '💎 Mejorar ($9.99)' : '💎 Upgrade ($9.99)';
+        }
+        btnEl.style.background = window.isPremium ? '#34a853' : '#fbbc04';
+    }
+}
+
+// ==================== LANGUAGE SYSTEM ====================
+window.isSpanish = localStorage.getItem('loomis_spanish') === 'true';
+
+const translations = {
+    // Settings Panel
+    settings: { en: 'Settings', es: 'Configuración' },
+    darkMode: { en: 'Dark Mode', es: 'Modo Oscuro' },
+    units: { en: 'Units (KM)', es: 'Unidades (KM)' },
+    spanish: { en: 'Español', es: 'Español' },
+    status: { en: 'Status: <b>Free</b>', es: 'Estado: <b>Gratis</b>' },
+    statusPremium: { en: 'Status: <b style="color:#d93025;">Premium 💎</b>', es: 'Estado: <b style="color:#d93025;">Premium 💎</b>' },
+    upgrade: { en: '💎 Upgrade ($9.99)', es: '💎 Mejorar ($9.99)' },
+    premiumActive: { en: '✓ Premium Active', es: '✓ Premium Activo' },
+
+    // Stats Panel
+    visible: { en: 'VISIBLE', es: 'VISIBLES' },
+    available: { en: 'AVAILABLE', es: 'DISPONIBLES' },
+    smartFind: { en: '✨ SMART FIND', es: '✨ BÚSQUEDA INTELIGENTE' },
+    closest: { en: '📍 Closest', es: '📍 Más Cercano' },
+    cheapest: { en: '💲 Cheapest', es: '💲 Más Barato' },
+    bestPrice: { en: 'Best Price:', es: 'Mejor Precio:' },
+    myReservations: { en: 'My Reservations', es: 'Mis Reservas' },
+
+    // InfoWindow / Popups
+    spaceId: { en: 'Space', es: 'Espacio' },
+    statusLabel: { en: 'Status', es: 'Estado' },
+    rate: { en: 'Rate', es: 'Tarifa' },
+    availableNow: { en: 'Available Now', es: 'Disponible Ahora' },
+    availableSoon: { en: 'Available Soon', es: 'Disponible Pronto' },
+    reserveNow: { en: '✓ Reserve Now', es: '✓ Reservar Ahora' },
+    hold10Min: { en: '💎 Hold 10 Min', es: '💎 Guardar 10 Min' },
+    reserveLater: { en: '💎 Reserve Later', es: '💎 Reservar Después' },
+    premiumRequired: { en: '💎 Premium required to reserve', es: '💎 Se requiere Premium para reservar' },
+    holdReservePremium: { en: '💎 Hold & Reserve Later require Premium', es: '💎 Guardar y Reservar Después requieren Premium' },
+
+    // Alerts & Messages
+    searchPlaceholder: { en: 'Search for a location...', es: 'Buscar una ubicación...' },
+    zoomIn: { en: 'Zoom In', es: 'Acercar' },
+    noParking: { en: 'No parking found.', es: 'No se encontró estacionamiento.' },
+    loading: { en: 'Loading data...', es: 'Cargando datos...' },
+    dbReady: { en: 'DB Ready.', es: 'BD Lista.' },
+    selectedLocation: { en: 'Selected Location', es: 'Ubicación Seleccionada' },
+    lookingNearPin: { en: '*Looking near pin', es: '*Buscando cerca del marcador' },
+
+    // Premium Popups
+    premiumFeature: { en: 'Premium Feature', es: 'Función Premium' },
+    upgradeToPremium: { en: 'Upgrade to Premium', es: 'Mejorar a Premium' },
+    welcomePremium: { en: 'Welcome to Premium!', es: '¡Bienvenido a Premium!' },
+    awesome: { en: 'Awesome!', es: '¡Genial!' },
+    notNow: { en: 'Not Now', es: 'Ahora No' },
+    subscribe: { en: 'Subscribe 💎', es: 'Suscribirse 💎' },
+    cancel: { en: 'Cancel', es: 'Cancelar' },
+    yesSubscribe: { en: 'Yes, Subscribe!', es: '¡Sí, Suscribirse!' }
+};
+
+function applyTranslations() {
+    const lang = window.isSpanish ? 'es' : 'en';
+
+    // Translate elements with data-i18n attribute
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+        const key = el.getAttribute('data-i18n');
+        if (translations[key]) {
+            el.innerHTML = translations[key][lang];
+        }
+    });
+
+    // Update search placeholder
+    const searchInput = document.getElementById('pac-input');
+    if (searchInput) {
+        searchInput.placeholder = translations.searchPlaceholder[lang];
+    }
+
+    // Update premium UI with correct language
+    updatePremiumUI();
+}
+
+window.toggleLanguage = () => {
+    window.isSpanish = !window.isSpanish;
+    localStorage.setItem('loomis_spanish', window.isSpanish.toString());
+    applyTranslations();
+
+    // Refresh stats panel if map is loaded
+    if (map && GlobalMarkerElement) {
+        updateMap(GlobalMarkerElement);
+    }
+};
+
+// Initialize language on load
+window.addEventListener('load', () => {
+    const toggle = document.getElementById('spanish-toggle');
+    if (toggle) toggle.checked = window.isSpanish;
+    if (window.isSpanish) applyTranslations();
+});
+
+
+
+
+// Track Multiple User Reservations
+let myReservations = []; // { spaceid, type, lat, lng, time, price, startTime }
+
+window.initMap = async function () {
+    const { Map, InfoWindow } = await google.maps.importLibrary("maps");
+    const { AdvancedMarkerElement } = await google.maps.importLibrary("marker");
+    GlobalMarkerElement = AdvancedMarkerElement;
+
+    const position = { lat: 34.0522, lng: -118.2437 };
+
+    map = new Map(document.getElementById("map"), {
+        zoom: 16,
+        center: position,
+        mapId: "DEMO_MAP_ID",
+        tilt: 0,
+        disableDefaultUI: true,
+        zoomControl: true,
+        gestureHandling: "greedy", // ENABLE ONE-FINGER PAN ON MOBILE
+    });
+
+    // SEARCH & PLACES SETUP
+    const input = document.getElementById("pac-input");
+    const uiContainer = document.getElementById("top-left-container");
+    uiContainer.style.display = "flex"; // Make visible when map loads
+
+    const { Autocomplete } = await google.maps.importLibrary("places");
+    const autocomplete = new Autocomplete(input);
+    autocomplete.bindTo("bounds", map);
+
+    // Push ENTIRE UI Container to Top-Left
+    map.controls[google.maps.ControlPosition.TOP_LEFT].push(uiContainer);
+
+
+
+    autocomplete.addListener("place_changed", () => {
+        const place = autocomplete.getPlace();
+        if (!place.geometry || !place.geometry.location) {
+            window.alert("No details available for input: '" + place.name + "'");
+            return;
+        }
+
+        if (place.geometry.viewport) {
+            map.fitBounds(place.geometry.viewport);
+        } else {
+            map.setCenter(place.geometry.location);
+            map.setZoom(17);
+        }
+
+        // Drop Destination Pin
+        if (destinationMarker) destinationMarker.map = null;
+
+        // Simple red pin for destination
+        const pinView = new google.maps.marker.PinElement({
+            background: "#DB4437",
+            borderColor: "#C5221F",
+            glyphColor: "white",
+        });
+
+        destinationMarker = new AdvancedMarkerElement({
+            map,
+            position: place.geometry.location,
+            content: pinView.element,
+            title: place.name,
+        });
+
+        // PERSIST LOCATION
+        window.searchDestination = place.geometry.location;
+
+        // UPDATE UI (Don't auto-nav)
+        const statsDiv = document.getElementById('stats');
+        statsDiv.innerHTML = `
+            <div class="smart-find-box">
+                 <div class="sf-label">Selected Location</div>
+                 <div class="sf-title">${place.name}</div>
+                 <div style="display:flex; gap:8px;">
+                      <button onclick="navigateToClosest()" class="nav-btn-light">📍 Closest</button>
+                      <button onclick="navigateToCheapest()" class="nav-btn-blue">💲 Cheapest</button>
+                 </div>
+                 <div style="margin-top:8px; font-size:10px; color:#666;">*Looking near pin</div>
+            </div>
+        `;
+    });
+
+    activeInfoWindow = new InfoWindow();
+
+    const statsDiv = document.getElementById('stats');
+    statsDiv.textContent = "Fetching data (v4)...";
+
+    // LOAD DATABASE
+    try {
+        const response = await fetch('parking_min.json');
+        if (!response.ok) throw new Error("Local DB not found.");
+        parkingDatabase = await response.json();
+
+        parkingDatabase.forEach(meter => {
+            const rand = Math.random();
+            if (rand < 0.45) meter.status = 'taken';
+            else if (rand < 0.60) meter.status = 'soon';
+            else meter.status = 'free';
+
+            let price = 0;
+            if (meter.raterange) {
+                const match = meter.raterange.match(/\$?(\d+(\.\d{2})?)/);
+                if (match) price = parseFloat(match[1]);
+            }
+            meter.priceVal = price;
+        });
+
+        console.log(`Database loaded: ${parkingDatabase.length} records.`);
+        statsDiv.textContent = `DB Ready.`;
+
+        updateMap(AdvancedMarkerElement);
+
+    } catch (err) {
+        console.error("DB Load Error:", err);
+        return;
+    }
+
+    map.addListener('idle', () => updateMap(AdvancedMarkerElement));
+
+    // AUTO-RESERVE LOGIC (For loomis_random.html)
+    if (window.autoReserve) {
+        // Filter for free spots
+        const freeSpots = parkingDatabase.filter(m => m.status === 'free');
+
+        if (freeSpots.length > 0) {
+            // Pick random spot
+            const randomSpot = freeSpots[Math.floor(Math.random() * freeSpots.length)];
+            const lat = parseFloat(randomSpot.latlng.latitude);
+            const lng = parseFloat(randomSpot.latlng.longitude);
+
+            console.log("Auto-Reserving Spot:", randomSpot.spaceid);
+
+            // Pan to spot
+            map.setCenter({ lat, lng });
+            map.setZoom(19);
+
+            // Open Reservation Popup directly
+            // Wait slightly for map to move
+            setTimeout(() => {
+                showTimePickerPopup(randomSpot.spaceid, randomSpot.priceVal);
+            }, 1000);
+        } else {
+            console.warn("No free spots available for auto-reservation.");
+        }
+    }
+};
+
+// SMART NAV LOGIC
+
+
+window.navigateToReservation = (index) => {
+    if (myReservations[index]) {
+        const res = myReservations[index];
+        map.panTo({ lat: res.lat, lng: res.lng });
+        map.setZoom(19);
+    }
+};
+
+// BILLING LOGIC
+window.endReservation = (index) => {
+    if (!myReservations[index]) return;
+
+    const res = myReservations[index];
+    const duration = 15 + Math.floor(Math.random() * 45); // Simulate duration minutes
+    const totalCost = res.price; // Flat rate for demo, could be per hour
+
+    // 1. Show Bill
+    const billMsg = `
+    🧾 YOUR RECEIPT
+    ----------------------------
+    Space ID: ${res.spaceid}
+    Duration: ${duration} mins
+    ----------------------------
+    TOTAL PAID: $${totalCost.toFixed(2)}
+    ----------------------------
+    Thank you for using Parkinator!
+    `;
+    alert(billMsg);
+
+    // 2. Free up the spot in local DB
+    const meter = parkingDatabase.find(m => m.spaceid === res.spaceid);
+    if (meter) {
+        meter.status = 'free';
+    }
+
+    // 3. Remove from array
+    myReservations.splice(index, 1);
+
+    // 4. Refresh UI
+    google.maps.importLibrary("marker").then(({ AdvancedMarkerElement }) => {
+        updateMap(AdvancedMarkerElement);
+    });
+};
+
+// Trusted Time API
+async function getTrustedTime() {
+    try {
+        const response = await fetch("https://worldtimeapi.org/api/timezone/America/Los_Angeles");
+        const data = await response.json();
+        return new Date(data.datetime);
+    } catch (e) {
+        console.warn("Time API failed, falling back to local time.", e);
+        return new Date();
+    }
+}
+
+async function getTimePlusHoursStr(hours) {
+    const d = await getTrustedTime();
+    d.setHours(d.getHours() + hours);
+    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
+// Time Picker Popup for Reservations
+window.showTimePickerPopup = async (spaceId, priceVal) => {
+    const isEs = window.isSpanish;
+
+    // Fetch trusted time from API
+    let currentTime;
+    let usingFallback = false;
+
+    try {
+        const response = await fetch("https://worldtimeapi.org/api/timezone/America/Los_Angeles");
+        if (!response.ok) throw new Error("API response not ok");
+        const data = await response.json();
+        currentTime = new Date(data.datetime);
+        console.log("✓ Time synced from WorldTimeAPI:", currentTime);
+    } catch (e) {
+        console.warn("WorldTimeAPI failed, using local time:", e);
+        currentTime = new Date();
+        usingFallback = true;
+    }
+
+    // Calculate minimum time (2 hours from now)
+    const minTime = new Date(currentTime.getTime() + (2 * 60 * 60 * 1000));
+
+    // Format minTime for datetime-local input (YYYY-MM-DDTHH:mm)
+    const tzOffset = currentTime.getTimezoneOffset() * 60000;
+    const minLocIso = new Date(minTime.getTime() - tzOffset).toISOString().slice(0, 16);
+    const defaultsIso = new Date(minTime.getTime() - tzOffset).toISOString().slice(0, 16);
+
+    // Create overlay
+    const overlay = document.createElement('div');
+    overlay.id = 'time-picker-overlay';
+    overlay.style.cssText = `
+        position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+        background: rgba(0,0,0,0.6); z-index: 9999;
+        display: flex; align-items: center; justify-content: center;
+    `;
+
+    const currentTimeDisplay = currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const minTimeDisplay = minTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+    // Dark mode colors
+    const darkModeActive = document.body.classList.contains('dark-mode');
+    const popupBg = darkModeActive ? '#2c2c2c' : 'white';
+    const popupText = darkModeActive ? '#e0e0e0' : '#333';
+    const popupSubtext = darkModeActive ? '#aaa' : '#666';
+    const inputBg = darkModeActive ? '#444' : 'white';
+    const cancelBg = darkModeActive ? '#444' : '#f5f5f5';
+    const cancelBorder = darkModeActive ? '#555' : '#ddd';
+
+    // Translated strings
+    const spaceLabel = isEs ? 'Espacio' : 'Space';
+    const rateLabel = isEs ? 'Tarifa' : 'Rate';
+    const reserveTitle = isEs ? `Reservar ${spaceLabel} ${spaceId}` : `Reserve ${spaceLabel} ${spaceId}`;
+    const timeVerified = isEs ? '✓ Hora verificada vía WorldTimeAPI' : '✓ Time verified via WorldTimeAPI';
+    const timeDevice = isEs ? '⚠️ Usando hora del dispositivo (API no disponible)' : '⚠️ Using device time (API unavailable)';
+    const currentTimeLabel = isEs ? 'Hora Actual' : 'Current Time';
+    const selectDateTime = isEs ? 'Seleccionar Fecha y Hora:' : 'Select Date & Time:';
+    const earliestAllowed = isEs ? `⏰ Más temprano permitido: ${minTimeDisplay} (Hoy)` : `⏰ Earliest allowed: ${minTimeDisplay} (Today)`;
+    const cancelBtn = isEs ? 'Cancelar' : 'Cancel';
+    const confirmBtn = isEs ? 'Confirmar Reserva' : 'Confirm Reservation';
+
+    overlay.innerHTML = `
+        <div style="
+            background: ${popupBg}; border-radius: 16px; padding: 24px; max-width: 340px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3); text-align: center;
+        ">
+            <div style="font-size: 40px; margin-bottom: 8px;">🕐</div>
+            <h2 style="margin: 0 0 4px; color: ${popupText}; font-size: 20px;">${reserveTitle}</h2>
+            <p style="color: ${popupSubtext}; font-size: 13px; margin: 0 0 12px;">${rateLabel}: <b>$${priceVal.toFixed(2)}/hr</b></p>
+            
+            <div style="
+                background: ${usingFallback ? '#fff3cd' : '#e8f5e9'}; 
+                border: 1px solid ${usingFallback ? '#ffc107' : '#4caf50'};
+                padding: 8px; border-radius: 8px; margin-bottom: 12px; font-size: 12px;
+                color: ${usingFallback ? '#856404' : '#2e7d32'};
+            ">
+                ${usingFallback ? timeDevice : timeVerified}<br>
+                <b>${currentTimeLabel}:</b> ${currentTimeDisplay}
+            </div>
+            
+            <div style="text-align: left; margin-bottom: 12px;">
+                <label style="font-size: 13px; color: ${popupSubtext}; font-weight: bold;">${selectDateTime}</label>
+                <input type="datetime-local" id="time-input" value="${defaultsIso}" min="${minLocIso}" style="
+                    width: 100%; padding: 12px; margin-top: 6px;
+                    border: 2px solid #1A73E8; border-radius: 8px;
+                    font-size: 16px; cursor: pointer; font-family: sans-serif;
+                    background: ${inputBg}; color: ${popupText};
+                ">
+                <div style="font-size: 11px; color: ${popupSubtext}; margin-top: 4px;">
+                    ${earliestAllowed}
+                </div>
+            </div>
+            
+            <div style="display: flex; gap: 10px;">
+                <button id="time-cancel-btn" style="
+                    flex: 1; padding: 12px; border: 1px solid ${cancelBorder}; background: ${cancelBg};
+                    border-radius: 8px; font-size: 14px; cursor: pointer; color: ${popupText};
+                ">${cancelBtn}</button>
+                <button id="time-confirm-btn" style="
+                    flex: 1; padding: 12px; border: none; background: #1A73E8;
+                    color: white; border-radius: 8px; font-size: 14px; font-weight: bold; cursor: pointer;
+                ">${confirmBtn}</button>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(overlay);
+
+    // Button handlers
+    document.getElementById('time-confirm-btn').onclick = async () => {
+        const inputVal = document.getElementById('time-input').value;
+        if (!inputVal) {
+            alert("Please select a valid date and time.");
+            return;
+        }
+
+        const selectedTime = new Date(inputVal);
+
+        // Validation: Verify time is at least 2 hours in future (allow 1 min buffer for UI latency)
+        // We use the same 'minTime' reference we calculated earlier
+        if (selectedTime < minTime) {
+            alert(`⚠️ Invalid Time.\n\nReservations must be at least 2 hours in advance.\nEarliest time: ${minTimeDisplay}`);
+            return;
+        }
+
+        // PREMIUM CHECK for "Future" or "Available Soon" reservations
+        // If user is NOT premium, block them here (Tease-then-Block pattern)
+        // We know it's a future reservation because of the 2-hour minimum
+        if (!window.isPremium) {
+            overlay.remove();
+            showPremiumRequiredPopup();
+            return;
+        }
+
+        const hoursFromNow = (selectedTime - currentTime) / (1000 * 60 * 60);
+        const reservationTime = selectedTime;
+
+        overlay.remove();
+
+        // Close info window
+        if (activeInfoWindow) activeInfoWindow.close();
+
+        // Find meter and create reservation
+        const meter = parkingDatabase.find(m => m.spaceid === spaceId);
+        if (!meter) return;
+
+        const res = {
+            spaceid: meter.spaceid,
+            type: 'scheduled',
+            lat: parseFloat(meter.latlng.latitude),
+            lng: parseFloat(meter.latlng.longitude),
+            price: meter.priceVal,
+            startTime: reservationTime,
+            hoursFromNow: hoursFromNow
+        };
+
+        myReservations.push(res);
+        meter.status = 'taken';
+
+        // Refresh Map
+        updateMap(GlobalMarkerElement);
+
+        const timeStr = reservationTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        const dateStr = reservationTime.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
+
+        alert(`✅ Reservation Confirmed!\n\nSpace: ${spaceId}\nTime: ${timeStr} on ${dateStr}\nRate: $${meter.priceVal.toFixed(2)}/hr`);
+    };
+
+    document.getElementById('time-cancel-btn').onclick = () => {
+        overlay.remove();
+    };
+
+    // Click outside to close
+    overlay.onclick = (e) => {
+        if (e.target === overlay) overlay.remove();
+    };
+};
+
+// Reservation Logic
+
+
+
+function updateMap(AdvancedMarkerElement) {
+    const statsDiv = document.getElementById('stats');
+    const zoom = map.getZoom();
+
+    if (zoom < ZOOM_THRESHOLD) {
+        clearMarkers();
+        statsDiv.innerHTML = `<div style="text-align:center;">Zoom In</div>`;
+        return;
+    }
+
+    const bounds = map.getBounds();
+    if (!bounds) return;
+
+    const ne = bounds.getNorthEast();
+    const sw = bounds.getSouthWest();
+
+    const visibleMeters = parkingDatabase.filter(meter => {
+        if (!meter.latlng) return false;
+        const lat = parseFloat(meter.latlng.latitude);
+        const lng = parseFloat(meter.latlng.longitude);
+        return lat >= sw.lat() && lat <= ne.lat() && lng >= sw.lng() && lng <= ne.lng();
+    });
+
+    clearMarkers();
+
+    const MarkerDef = AdvancedMarkerElement || GlobalMarkerElement;
+    renderMarkers(visibleMeters, MarkerDef);
+    updateStats(visibleMeters, statsDiv);
+}
+
+
+// Settings & State
+let useMetric = false;
+let isDarkMode = false;
+let directionsService, directionsRenderer;
+
+// Initialize Routing
+window.addEventListener('load', async () => {
+    const { DirectionsService, DirectionsRenderer } = await google.maps.importLibrary("routes");
+    directionsService = new DirectionsService();
+    directionsRenderer = new DirectionsRenderer({
+        suppressMarkers: true,
+        polylineOptions: { strokeColor: "#1A73E8", strokeWeight: 5 }
+    });
+    directionsRenderer.setMap(map);
+});
+
+// Toggle Functions
+window.toggleSettings = () => {
+    const panel = document.getElementById('settings-panel');
+    panel.style.display = (panel.style.display === 'none' || !panel.style.display) ? 'block' : 'none';
+};
+
+window.toggleTheme = () => {
+    isDarkMode = !isDarkMode;
+    document.body.classList.toggle('dark-mode', isDarkMode);
+
+    // Google Maps Dark Mode JSON
+    const darkStyles = [
+        { elementType: "geometry", stylers: [{ color: "#242f3e" }] },
+        { elementType: "labels.text.stroke", stylers: [{ color: "#242f3e" }] },
+        { elementType: "labels.text.fill", stylers: [{ color: "#746855" }] },
+        { featureType: "administrative.locality", elementType: "labels.text.fill", stylers: [{ color: "#d59563" }] },
+        { featureType: "poi", elementType: "labels.text.fill", stylers: [{ color: "#d59563" }] },
+        { featureType: "poi.park", elementType: "geometry", stylers: [{ color: "#263c3f" }] },
+        { featureType: "poi.park", elementType: "labels.text.fill", stylers: [{ color: "#6b9a76" }] },
+        { featureType: "road", elementType: "geometry", stylers: [{ color: "#38414e" }] },
+        { featureType: "road", elementType: "geometry.stroke", stylers: [{ color: "#212a37" }] },
+        { featureType: "road", elementType: "labels.text.fill", stylers: [{ color: "#9ca5b3" }] },
+        { featureType: "road.highway", elementType: "geometry", stylers: [{ color: "#746855" }] },
+        { featureType: "road.highway", elementType: "geometry.stroke", stylers: [{ color: "#1f2835" }] },
+        { featureType: "road.highway", elementType: "labels.text.fill", stylers: [{ color: "#f3d19c" }] },
+        { featureType: "transit", elementType: "geometry", stylers: [{ color: "#2f3948" }] },
+        { featureType: "transit.station", elementType: "labels.text.fill", stylers: [{ color: "#d59563" }] },
+        { featureType: "water", elementType: "geometry", stylers: [{ color: "#17263c" }] },
+        { featureType: "water", elementType: "labels.text.fill", stylers: [{ color: "#515c6d" }] },
+        { featureType: "water", elementType: "labels.text.stroke", stylers: [{ color: "#17263c" }] }
+    ];
+
+    if (map) {
+        map.setOptions({ styles: isDarkMode ? darkStyles : [] });
+    }
+};
+
+window.toggleUnits = () => {
+    useMetric = !useMetric;
+    alert(`Units switched to ${useMetric ? "Metric" : "Imperial"}.`);
+};
+
+// SMART NAV & ROUTING
+window.findSmartSpot = async (targetLoc, mode = 'cheapest') => {
+    // If no specific target, use Persisted Search Pin OR Map Center
+    if (!targetLoc) {
+        targetLoc = window.searchDestination ? window.searchDestination : map.getCenter();
+    }
+    const { spherical } = await google.maps.importLibrary("geometry");
+
+    // Filter for FREE spots
+    const freeMeters = parkingDatabase.filter(m => m.status === 'free' && m.latlng);
+    let bestSpot = null;
+    let msg = "";
+
+    // MODE: CLOSEST
+    if (mode === 'closest') {
+        let minDist = Infinity;
+        freeMeters.forEach(meter => {
+            const lat = parseFloat(meter.latlng.latitude);
+            const lng = parseFloat(meter.latlng.longitude);
+            const dist = spherical.computeDistanceBetween(targetLoc, new google.maps.LatLng(lat, lng));
+            if (dist < minDist) { minDist = dist; bestSpot = meter; }
+        });
+        msg = "Found closest parking spot!";
+    }
+    // MODE: CHEAPEST (< 0.5mi / 0.8km)
+    else {
+        const radiusMeters = useMetric ? 800 : (0.5 * 1609.34);
+        let candidates = [];
+        freeMeters.forEach(meter => {
+            const lat = parseFloat(meter.latlng.latitude);
+            const lng = parseFloat(meter.latlng.longitude);
+            const dist = spherical.computeDistanceBetween(targetLoc, new google.maps.LatLng(lat, lng));
+            if (dist <= radiusMeters) candidates.push({ meter, dist });
+        });
+
+        if (candidates.length > 0) {
+            candidates.sort((a, b) => { // Sort by Price, then Distance
+                const pDiff = a.meter.priceVal - b.meter.priceVal;
+                return pDiff !== 0 ? pDiff : a.dist - b.dist;
+            });
+            bestSpot = candidates[0].meter;
+            msg = useMetric ? "Found cheapest spot within 800m!" : "Found cheapest spot within 0.5 miles!";
+        } else {
+            return window.findSmartSpot(targetLoc, 'closest'); // Fallback
+        }
+    }
+
+    if (bestSpot) {
+        const dest = { lat: parseFloat(bestSpot.latlng.latitude), lng: parseFloat(bestSpot.latlng.longitude) };
+        alert(`${msg}\nPrice: $${bestSpot.priceVal}/hr\nDrawing route...`);
+        map.panTo(dest);
+        map.setZoom(18);
+
+        // Draw Route
+        if (directionsService) {
+            directionsService.route({
+                origin: targetLoc,
+                destination: dest,
+                travelMode: google.maps.TravelMode.DRIVING
+            }, (res, status) => {
+                if (status === "OK") directionsRenderer.setDirections(res);
+                else console.warn("Route failed: " + status);
+            });
+        }
+    } else {
+        alert("No parking available at all.");
+    }
+};
+
+window.navigateToCheapest = () => window.findSmartSpot(null, 'cheapest');
+window.navigateToClosest = () => window.findSmartSpot(null, 'closest');
+
+// Update Stats with New Buttons
+function updateStats(meters, container) {
+    const lang = window.isSpanish ? 'es' : 'en';
+    const t = (key) => translations[key] ? translations[key][lang] : key;
+
+    if (meters.length === 0) {
+        container.innerHTML = t('noParking');
+        return;
+    }
+    const available = meters.filter(m => m.status === 'free');
+    let minPrice = Infinity;
+    available.forEach(m => { if (m.priceVal > 0 && m.priceVal < minPrice) minPrice = m.priceVal; });
+    const cheapDisp = minPrice !== Infinity ? `$${minPrice.toFixed(2)}` : "--";
+
+    let reservationHtml = '';
+    if (myReservations.length > 0) {
+        const spaceLabel = window.isSpanish ? 'Espacio' : 'Space';
+        const goLabel = window.isSpanish ? 'IR' : 'GO';
+        const endLabel = window.isSpanish ? 'FIN' : 'END';
+
+        let listHtml = myReservations.map((res, index) => `
+            <div class="res-card">
+                <div style="font-size:10px;"><b>${spaceLabel} ${res.spaceid}</b></div>
+                <div style="display:flex; gap:4px; margin-top:4px;">
+                    <button onclick="navigateToReservation(${index})" style="background:#1A73E8; color:white; border:none; border-radius:3px; padding:2px 6px; font-size:9px;">${goLabel}</button>
+                    <button onclick="endReservation(${index})" style="background:#d93025; color:white; border:none; border-radius:3px; padding:2px 6px; font-size:9px;">${endLabel}</button>
+                </div>
+            </div>`).join('');
+
+        const resLabel = window.isSpanish ? 'Mis Reservas' : 'My Reservations';
+        reservationHtml = `<details open class="res-details">
+            <summary>${resLabel} (${myReservations.length})</summary>
+            <div style="padding:5px; max-height:150px; overflow-y:auto;">${listHtml}</div>
+        </details>`;
+    }
+
+    // New Dual Buttons
+    reservationHtml += `
+        <div class="smart-find-box">
+             <div class="sf-label" style="font-size: 11px; font-weight: 600; letter-spacing: 0.5px; margin-bottom: 8px;">${t('smartFind')}</div>
+             <div style="display:flex; gap:8px; margin-bottom: 10px;">
+                  <button onclick="navigateToClosest()" class="nav-btn-light" style="display: flex; align-items: center; justify-content: center; gap: 4px;">${t('closest')}</button>
+                  <button onclick="navigateToCheapest()" class="nav-btn-blue" style="display: flex; align-items: center; justify-content: center; gap: 4px;">${t('cheapest')}</button>
+             </div>
+             <div class="sf-price" style="font-size: 13px; padding: 6px 10px; background: rgba(24, 128, 56, 0.1); border-radius: 6px; display: inline-block;">${t('bestPrice')} <b style="font-size: 15px;">${cheapDisp}</b></div>
+        </div>
+    `;
+
+    container.innerHTML = `
+        <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
+            <div><small>${t('visible')}</small> <b>${meters.length}</b></div>
+            <div style="text-align:right;"><small>${t('available')}</small> <b style="color:#34C759;">${available.length}</b></div>
+        </div>
+        ${reservationHtml}
+    `;
+}
+
+function clearMarkers() {
+    allMarkers.forEach(marker => marker.map = null);
+    allMarkers = [];
+}
+
+function renderMarkers(data, AdvancedMarkerElement) {
+    const MAX_RENDER = 1000;
+    const renderData = data.slice(0, MAX_RENDER);
+    const zoom = map.getZoom();
+
+    const bigStarSvg = (color) => `
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+             <path d="M12 17.27L18.18 21L16.54 13.97L22 9.24L14.81 8.63L12 2L9.19 8.63L2 9.24L7.46 13.97L5.82 21L12 17.27Z" 
+                   fill="${color}" stroke="white" stroke-width="1.5"/>
+        </svg>
+    `;
+
+    renderData.forEach(meter => {
+        const lat = parseFloat(meter.latlng.latitude);
+        const lng = parseFloat(meter.latlng.longitude);
+
+        let color = "#34C759";
+        let zIndex = 3;
+
+        let isMyReservation = myReservations.some(r => r.spaceid === meter.spaceid);
+
+        if (meter.status === 'taken') {
+            color = "#EA4335";
+            zIndex = 1;
+        } else if (meter.status === 'soon') {
+            color = "#FBBC04";
+            zIndex = 2;
+        }
+
+        if (isMyReservation) {
+            color = "#1A73E8"; // Blue Star
+            zIndex = 10;
+        }
+
+        let priceLabel = "";
+        // SHOW PRICE ONLY IF ZOOM >= 18 (and not hidden by reservation/taken)
+        const showPrice = (zoom >= PRICE_VISIBILITY_ZOOM);
+
+        if (showPrice && meter.priceVal > 0 && meter.status !== 'taken' && !isMyReservation) {
+            priceLabel = `<div class="price-tag" style="bottom: ${isMyReservation ? '40px' : '14px'};">$${meter.priceVal.toFixed(2)}</div>`;
+        }
+
+        const iconContainer = document.createElement('div');
+        iconContainer.style.position = 'relative';
+
+        if (isMyReservation) {
+            iconContainer.innerHTML = `
+                ${priceLabel}
+                ${bigStarSvg(color)}
+            `;
+        } else {
+            iconContainer.innerHTML = `
+                ${priceLabel}
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:block; margin:auto;">
+                    <circle cx="8" cy="8" r="6" fill="${color}" stroke="white" stroke-width="2"/>
+                </svg>
+            `;
+        }
+
+        const marker = new AdvancedMarkerElement({
+            map: map,
+            position: { lat: lat, lng: lng },
+            title: `ID: ${meter.spaceid}`,
+            content: iconContainer,
+            zIndex: zIndex
+        });
+
+        allMarkers.push(marker);
+
+        if ((meter.status === 'free' || meter.status === 'soon') && !isMyReservation) {
+            iconContainer.style.cursor = "pointer";
+
+            marker.addListener('click', () => {
+                const isSoon = (meter.status === 'soon');
+                const isEs = window.isSpanish;
+
+                // Translated strings
+                const spaceLabel = isEs ? 'Espacio' : 'Space';
+                const statusLabel = isEs ? 'Estado' : 'Status';
+                const rateLabel = isEs ? 'Tarifa' : 'Rate';
+                const availNow = isEs ? 'Disponible Ahora' : 'Available Now';
+                const availSoon = isEs ? 'Disponible Pronto' : 'Available Soon';
+                const reserveNowBtn = isEs ? '✓ Reservar Ahora' : '✓ Reserve Now';
+                const hold10Btn = isEs ? '💎 Guardar 10 Min' : '💎 Hold 10 Min';
+                const reserveLaterBtn = isEs ? '💎 Reservar Después' : '💎 Reserve Later';
+                const premReqText = isEs ? '💎 Se requiere Premium para reservar' : '💎 Premium required to reserve';
+                const holdReqText = isEs ? '💎 Guardar y Reservar Después requieren Premium' : '💎 Hold & Reserve Later require Premium';
+
+                let buttonsHtml = '';
+
+                if (isSoon) {
+                    // Available Soon spots - Show premium paywall immediately if not premium
+                    buttonsHtml = `
+                        <button onclick="if(!window.isPremium){showPremiumRequiredPopup();}else{showTimePickerPopup('${meter.spaceid}', ${meter.priceVal});}" 
+                            style="flex: 1; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; padding: 10px; border-radius: 6px; font-weight: bold; cursor: pointer;">
+                            ${reserveLaterBtn}
+                        </button>
+                    `;
+                } else {
+                    // Free spots - show THREE options: Reserve Now (free), Hold 10 Min (premium), Reserve Later (premium)
+                    buttonsHtml = `
+                        <div style="display: flex; flex-direction: column; gap: 8px; width: 100%;">
+                            <button onclick="reserveNow('${meter.spaceid}')" 
+                                style="width: 100%; background: #34C759; color: white; border: none; padding: 12px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 14px;">
+                                ${reserveNowBtn}
+                            </button>
+                            <div style="display: flex; gap: 8px;">
+                                <button onclick="if(!window.isPremium){showPremiumRequiredPopup();}else{holdSpotFor10Min('${meter.spaceid}', ${meter.priceVal});}" 
+                                    style="flex: 1; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; padding: 10px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 12px;">
+                                    ${hold10Btn}
+                                </button>
+                                <button onclick="if(!window.isPremium){showPremiumRequiredPopup();}else{showTimePickerPopup('${meter.spaceid}', ${meter.priceVal});}" 
+                                    style="flex: 1; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; padding: 10px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 12px;">
+                                    ${reserveLaterBtn}
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                }
+
+                const content = `
+            <div style="padding: 14px; min-width: 240px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 8px;">
+                    <h3 style="margin: 0; color: #333; font-size: 18px; font-weight: 600;">${spaceLabel} ${meter.spaceid}</h3>
+                    <div style="cursor:pointer; padding: 4px 8px; border-radius: 4px; background: #f5f5f5; font-size: 12px;" onclick="activeInfoWindow.close()">✕</div>
+                </div>
+                <div style="background: #f8f9fa; padding: 10px 12px; border-radius: 8px; margin-bottom: 12px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span style="color: #666; font-size: 13px;">${statusLabel}</span>
+                        <strong style="color: ${color}; font-size: 13px;">${isSoon ? availSoon : availNow}</strong>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 6px;">
+                        <span style="color: #666; font-size: 13px;">${rateLabel}</span>
+                        <strong style="color: #333; font-size: 14px;">$${meter.priceVal.toFixed(2)}/hr</strong>
+                    </div>
+                </div>
+
+                <div style="margin-bottom: 8px;">
+                    ${buttonsHtml}
+                </div>
+                ${isSoon ? `<div style="padding: 8px 10px; background: linear-gradient(135deg, rgba(102,126,234,0.1) 0%, rgba(118,75,162,0.1) 100%); border-radius: 6px; font-size: 11px; color: #667eea; text-align: center;">${premReqText}</div>` : `<div style="padding: 8px 10px; background: linear-gradient(135deg, rgba(102,126,234,0.1) 0%, rgba(118,75,162,0.1) 100%); border-radius: 6px; font-size: 11px; color: #667eea; text-align: center;">${holdReqText}</div>`}
+            </div>
+        `;
+
+                activeInfoWindow.setContent(content);
+                activeInfoWindow.open(map, marker);
+            });
+        }
+    });
+}
+
+window.upgradePremium = () => {
+    if (isPremium) {
+        // Show in-app manage subscription popup instead of confirm()
+        showCancelPremiumPopup();
+        return;
+    }
+
+    // Show pay popup
+    showPayPopup();
+};
+
+// Cancel Premium Popup - replaces browser confirm() for better UX
+function showCancelPremiumPopup() {
+    const overlay = document.createElement('div');
+    overlay.id = 'cancel-premium-overlay';
+    overlay.style.cssText = `
+        position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+        background: rgba(0,0,0,0.6); z-index: 9999;
+        display: flex; align-items: center; justify-content: center;
+    `;
+
+    // Dark mode colors
+    const darkModeActive = document.body.classList.contains('dark-mode');
+    const popupBg = darkModeActive ? '#2c2c2c' : 'white';
+    const popupText = darkModeActive ? '#e0e0e0' : '#333';
+    const popupSubtext = darkModeActive ? '#aaa' : '#666';
+    const keepBg = darkModeActive ? '#444' : '#f5f5f5';
+    const keepBorder = darkModeActive ? '#555' : '#ddd';
+
+    overlay.innerHTML = `
+        <div style="
+            background: ${popupBg}; border-radius: 16px; padding: 24px; max-width: 320px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3); text-align: center;
+        ">
+            <div style="font-size: 48px; margin-bottom: 12px;">💎</div>
+            <h2 style="margin: 0 0 8px; color: ${popupText}; font-size: 20px;">Premium Active</h2>
+            <p style="color: ${popupSubtext}; font-size: 14px; margin: 0 0 16px; line-height: 1.5;">
+                You're enjoying Premium benefits!<br>Do you want to cancel your subscription?
+            </p>
+            <div style="
+                background: linear-gradient(135deg, rgba(102,126,234,0.15) 0%, rgba(118,75,162,0.15) 100%);
+                padding: 12px; border-radius: 8px; margin-bottom: 16px;
+                font-size: 13px; color: ${popupSubtext};
+            ">
+                ✅ Future Reservations<br>
+                ✅ "Available Soon" Booking<br>
+                ✅ 10-Minute Hold Feature
+            </div>
+            <div style="display: flex; gap: 10px;">
+                <button id="cancel-premium-keep" style="
+                    flex: 1; padding: 12px; border: 1px solid ${keepBorder}; background: ${keepBg};
+                    border-radius: 8px; font-size: 14px; cursor: pointer; color: ${popupText};
+                ">Keep Premium</button>
+                <button id="cancel-premium-confirm" style="
+                    flex: 1; padding: 12px; border: none; background: #d93025;
+                    color: white; border-radius: 8px; font-size: 14px; font-weight: bold; cursor: pointer;
+                ">Cancel Sub</button>
+            </div>
+            <p style="color: ${popupSubtext}; font-size: 11px; margin: 12px 0 0;">(DEMO: Click Cancel to deactivate)</p>
+        </div>
+    `;
+
+    document.body.appendChild(overlay);
+
+    document.getElementById('cancel-premium-confirm').onclick = () => {
+        window.isPremium = false;
+        localStorage.setItem('loomis_premium', 'false');
+        updatePremiumUI();
+        overlay.remove();
+        alert("Subscription cancelled. You can re-subscribe anytime!");
+    };
+
+    document.getElementById('cancel-premium-keep').onclick = () => {
+        overlay.remove();
+    };
+
+    // Click outside to close
+    overlay.onclick = (e) => {
+        if (e.target === overlay) overlay.remove();
+    };
+}
+
+function showPayPopup() {
+    const isEs = window.isSpanish;
+
+    // Create overlay
+    const overlay = document.createElement('div');
+    overlay.id = 'pay-popup-overlay';
+    overlay.style.cssText = `
+        position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+        background: rgba(0,0,0,0.6); z-index: 9999;
+        display: flex; align-items: center; justify-content: center;
+    `;
+
+    // Dark mode colors - check body class directly for reliability
+    const darkModeActive = document.body.classList.contains('dark-mode');
+    const popupBg = darkModeActive ? '#2c2c2c' : 'white';
+    const popupText = darkModeActive ? '#e0e0e0' : '#333';
+    const popupSubtext = darkModeActive ? '#aaa' : '#666';
+    const cancelBg = darkModeActive ? '#444' : '#f5f5f5';
+    const cancelBorder = darkModeActive ? '#555' : '#ddd';
+
+    // Translated strings
+    const title = isEs ? 'Mejorar a Premium' : 'Upgrade to Premium';
+    const desc = isEs ? '¡Desbloquea reservas futuras y espacios "Disponible Pronto"!' : 'Unlock future reservations and "Available Soon" spots!';
+    const cancelBtn = isEs ? 'Cancelar' : 'Cancel';
+    const yesBtn = isEs ? '¡Sí, Suscribirse!' : 'Yes, Subscribe!';
+    const demoNote = isEs ? '(DEMO: Haz clic en Sí para activar)' : '(DEMO: Click Yes to activate)';
+    const monthLabel = isEs ? '/mes' : '/month';
+
+    // Create popup
+    overlay.innerHTML = `
+        <div style="
+            background: ${popupBg}; border-radius: 16px; padding: 24px; max-width: 320px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3); text-align: center;
+        ">
+            <div style="font-size: 48px; margin-bottom: 12px;">💎</div>
+            <h2 style="margin: 0 0 8px; color: ${popupText}; font-size: 22px;">${title}</h2>
+            <p style="color: ${popupSubtext}; font-size: 14px; margin: 0 0 16px;">
+                ${desc}
+            </p>
+            <div style="
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                color: white; padding: 12px; border-radius: 8px; margin-bottom: 16px;
+            ">
+                <div style="font-size: 28px; font-weight: bold;">$9.99<span style="font-size: 14px;">${monthLabel}</span></div>
+            </div>
+            <div style="display: flex; gap: 10px;">
+                <button id="pay-cancel-btn" style="
+                    flex: 1; padding: 12px; border: 1px solid ${cancelBorder}; background: ${cancelBg};
+                    border-radius: 8px; font-size: 14px; cursor: pointer; color: ${popupText};
+                ">${cancelBtn}</button>
+                <button id="pay-yes-btn" style="
+                    flex: 1; padding: 12px; border: none; background: #34a853;
+                    color: white; border-radius: 8px; font-size: 14px; font-weight: bold; cursor: pointer;
+                ">${yesBtn}</button>
+            </div>
+            <p style="color: ${popupSubtext}; font-size: 11px; margin: 12px 0 0;">${demoNote}</p>
+        </div>
+    `;
+
+    document.body.appendChild(overlay);
+
+    // Button handlers
+    document.getElementById('pay-yes-btn').onclick = () => {
+        window.isPremium = true;
+        localStorage.setItem('loomis_premium', 'true');
+        updatePremiumUI();
+        overlay.remove();
+        showSuccessPopup();
+    };
+
+    document.getElementById('pay-cancel-btn').onclick = () => {
+        overlay.remove();
+    };
+
+    // Click outside to close
+    overlay.onclick = (e) => {
+        if (e.target === overlay) overlay.remove();
+    };
+}
+
+function showSuccessPopup() {
+    const isEs = window.isSpanish;
+
+    // Create overlay
+    const overlay = document.createElement('div');
+    overlay.id = 'success-popup-overlay';
+    overlay.style.cssText = `
+        position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+        background: rgba(0,0,0,0.6); z-index: 9999;
+        display: flex; align-items: center; justify-content: center;
+    `;
+
+    // Dark mode colors - check body class directly for reliability
+    const darkModeActive = document.body.classList.contains('dark-mode');
+    const popupBg = darkModeActive ? '#2c2c2c' : 'white';
+    const popupSubtext = darkModeActive ? '#aaa' : '#666';
+
+    // Translated strings
+    const title = isEs ? '¡Bienvenido a Premium!' : 'Welcome to Premium!';
+    const desc = isEs
+        ? 'Has desbloqueado funciones exclusivas:<br><b>Reservas Futuras</b> & <b>Reserva Disp. Pronto</b>'
+        : 'You\'ve unlocked exclusive features:<br><b>Future Reservations</b> & <b>Avail. Soon Booking</b>';
+    const awesomeBtn = isEs ? '¡Genial!' : 'Awesome!';
+
+    overlay.innerHTML = `
+        <div style="
+            background: ${popupBg}; border-radius: 16px; padding: 32px; max-width: 320px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3); text-align: center;
+            animation: popIn 0.3s ease-out;
+        ">
+            <div style="font-size: 64px; margin-bottom: 16px;">🎉</div>
+            <h2 style="margin: 0 0 8px; color: #34a853; font-size: 24px;">${title}</h2>
+            <p style="color: ${popupSubtext}; font-size: 15px; margin: 0 0 24px; line-height: 1.5;">
+                ${desc}
+            </p>
+            <button id="success-close-btn" style="
+                width: 100%; padding: 14px; border: none; background: #34a853;
+                color: white; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer;
+                box-shadow: 0 4px 6px rgba(52, 168, 83, 0.3);
+            ">${awesomeBtn}</button>
+        </div>
+        <style>
+            @keyframes popIn {
+                0% { transform: scale(0.8); opacity: 0; }
+                100% { transform: scale(1); opacity: 1; }
+            }
+        </style>
+    `;
+
+    document.body.appendChild(overlay);
+
+    document.getElementById('success-close-btn').onclick = () => {
+        overlay.remove();
+    };
+
+    overlay.onclick = (e) => {
+        if (e.target === overlay) overlay.remove();
+    };
+}
+
+// Reservation Logic
+window.handleReserve = async (spaceId, type) => {
+    const meter = parkingDatabase.find(m => m.spaceid === spaceId);
+    if (!meter) return;
+
+    // ENFORCE PREMIUM for "Later" or "Soon" spots
+    // If reserving "Now" on a "Free" spot -> Free for everyone (per previous understanding, but user said "future scheduling" needs premium)
+    // User request: "change the premium so it does not allow you to reserve later or available soon without it"
+
+    if ((type === 'later' || meter.status === 'soon') && !window.isPremium) {
+        showPremiumRequiredPopup();
+        return;
+    }
+
+    // Get time
+    let startTime = new Date();
+    try {
+        if (typeof getTrustedTime === 'function') {
+            const t = await getTrustedTime();
+            if (t) startTime = t;
+        }
+    } catch (e) {
+        console.warn("Time sync failed, using local", e);
+    }
+
+    const res = {
+        spaceid: meter.spaceid,
+        type: type,
+        lat: parseFloat(meter.latlng.latitude),
+        lng: parseFloat(meter.latlng.longitude),
+        price: meter.priceVal,
+        startTime: startTime
+    };
+
+    myReservations.push(res);
+    meter.status = 'taken'; // Update local logic
+
+    // Refresh Map
+    updateMap(GlobalMarkerElement);
+
+    // Close Window
+    if (activeInfoWindow) activeInfoWindow.close();
+
+    alert("Reservation Confirmed!\nSpace: " + spaceId);
+};
+
+// Reserve Now - Free for everyone, immediate reservation
+window.reserveNow = async (spaceId) => {
+    const meter = parkingDatabase.find(m => m.spaceid === spaceId);
+    if (!meter) return;
+
+    // Get time
+    let startTime = new Date();
+    try {
+        if (typeof getTrustedTime === 'function') {
+            const t = await getTrustedTime();
+            if (t) startTime = t;
+        }
+    } catch (e) {
+        console.warn("Time sync failed, using local", e);
+    }
+
+    const res = {
+        spaceid: meter.spaceid,
+        type: 'now',
+        lat: parseFloat(meter.latlng.latitude),
+        lng: parseFloat(meter.latlng.longitude),
+        price: meter.priceVal,
+        startTime: startTime
+    };
+
+    myReservations.push(res);
+    meter.status = 'taken';
+
+    // Refresh Map
+    updateMap(GlobalMarkerElement);
+
+    // Close Window
+    if (activeInfoWindow) activeInfoWindow.close();
+
+    alert("✅ Reservation Confirmed!\nSpace: " + spaceId + "\nStatus: Reserved Now\nRate: $" + meter.priceVal.toFixed(2) + "/hr");
+};
+
+// Hold Spot for 10 Minutes - Premium Feature
+window.holdSpotFor10Min = async (spaceId, priceVal) => {
+    // PREMIUM CHECK
+    if (!window.isPremium) {
+        showPremiumRequiredPopup();
+        return;
+    }
+
+    const meter = parkingDatabase.find(m => m.spaceid === spaceId);
+    if (!meter) return;
+
+    // Get time
+    let startTime = new Date();
+    try {
+        if (typeof getTrustedTime === 'function') {
+            const t = await getTrustedTime();
+            if (t) startTime = t;
+        }
+    } catch (e) {
+        console.warn("Time sync failed, using local", e);
+    }
+
+    const holdEndTime = new Date(startTime.getTime() + 10 * 60 * 1000); // 10 minutes from now
+
+    const res = {
+        spaceid: meter.spaceid,
+        type: 'hold',
+        lat: parseFloat(meter.latlng.latitude),
+        lng: parseFloat(meter.latlng.longitude),
+        price: meter.priceVal,
+        startTime: startTime,
+        holdUntil: holdEndTime
+    };
+
+    myReservations.push(res);
+    meter.status = 'taken';
+
+    // Refresh Map
+    updateMap(GlobalMarkerElement);
+
+    // Close Window
+    if (activeInfoWindow) activeInfoWindow.close();
+
+    const endTimeStr = holdEndTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    alert("⏱️ Spot Held!\n\nSpace: " + spaceId + "\nHeld until: " + endTimeStr + " (10 min)\nRate: $" + meter.priceVal.toFixed(2) + "/hr\n\n💡 Complete your reservation within 10 minutes or the hold will expire.");
+};
+
+function showPremiumRequiredPopup() {
+    const isEs = window.isSpanish;
+
+    // Create overlay
+    const overlay = document.createElement('div');
+    overlay.id = 'premium-required-overlay';
+    overlay.style.cssText = `
+        position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+        background: rgba(0,0,0,0.6); z-index: 9999;
+        display: flex; align-items: center; justify-content: center;
+    `;
+
+    // Dark mode colors - check body class directly for reliability
+    const darkModeActive = document.body.classList.contains('dark-mode');
+    const popupBg = darkModeActive ? '#2c2c2c' : 'white';
+    const popupText = darkModeActive ? '#e0e0e0' : '#333';
+    const popupSubtext = darkModeActive ? '#aaa' : '#666';
+    const cancelBg = darkModeActive ? '#444' : '#f5f5f5';
+    const cancelBorder = darkModeActive ? '#555' : '#ddd';
+
+    // Translated strings
+    const title = isEs ? 'Función Premium' : 'Premium Feature';
+    const desc = isEs
+        ? 'Reservar espacios <b>"Disponible Pronto"</b> y <b>reservas futuras</b> requiere una suscripción Premium.'
+        : 'Reserving <b>"Available Soon"</b> spots and <b>future bookings</b> requires a Premium subscription.';
+    const priceNote = isEs ? '💡 Suscríbete a Premium por solo <b>$9.99/mes</b>' : '💡 Subscribe to Premium for just <b>$9.99/month</b>';
+    const notNowBtn = isEs ? 'Ahora No' : 'Not Now';
+    const subscribeBtn = isEs ? 'Suscribirse 💎' : 'Subscribe 💎';
+
+    overlay.innerHTML = `
+        <div style="
+            background: ${popupBg}; border-radius: 16px; padding: 24px; max-width: 320px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3); text-align: center;
+        ">
+            <div style="font-size: 48px; margin-bottom: 12px;">🔒</div>
+            <h2 style="margin: 0 0 8px; color: ${popupText}; font-size: 20px;">${title}</h2>
+            <p style="color: ${popupSubtext}; font-size: 14px; margin: 0 0 16px; line-height: 1.5;">
+                ${desc}
+            </p>
+            <div style="
+                background: #fff3cd; border: 1px solid #ffc107; padding: 10px;
+                border-radius: 8px; margin-bottom: 16px; font-size: 13px; color: #856404;
+            ">
+                ${priceNote}
+            </div>
+            <div style="display: flex; gap: 10px;">
+                <button id="prem-req-cancel" style="
+                    flex: 1; padding: 12px; border: 1px solid ${cancelBorder}; background: ${cancelBg};
+                    border-radius: 8px; font-size: 14px; cursor: pointer; color: ${popupText};
+                ">${notNowBtn}</button>
+                <button id="prem-req-subscribe" style="
+                    flex: 1; padding: 12px; border: none; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                    color: white; border-radius: 8px; font-size: 14px; font-weight: bold; cursor: pointer;
+                ">${subscribeBtn}</button>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(overlay);
+
+    document.getElementById('prem-req-subscribe').onclick = () => {
+        overlay.remove();
+        showPayPopup();
+    };
+
+    document.getElementById('prem-req-cancel').onclick = () => {
+        overlay.remove();
+    };
+
+    overlay.onclick = (e) => {
+        if (e.target === overlay) overlay.remove();
+    };
+}
+
+
+if (window.google && window.google.maps) {
+    initMap();
+} else {
+    window.addEventListener('load', () => {
+        if (window.google && window.google.maps) {
+            initMap();
+        }
+    });
+}
+
+// Easter Egg: Rain Animation
+window.triggerRain = () => {
+    const images = ['egg1.png', 'egg2.png', 'egg3.png'];
+    // Prevent multiple containers
+    if (document.getElementById('rain-container')) return;
+
+    const container = document.createElement('div');
+    container.id = 'rain-container';
+    container.style.cssText = 'position:fixed; top:0; left:0; width:100%; height:100%; pointer-events:none; z-index:10000; overflow:hidden;';
+    document.body.appendChild(container);
+
+    // Add styles for animation
+    const style = document.createElement('style');
+    style.innerHTML = `
+        @keyframes fall {
+            0% { transform: translateY(-10vh) rotate(0deg); opacity: 1; }
+            100% { transform: translateY(110vh) rotate(360deg); opacity: 0.8; }
+        }
+    `;
+    container.appendChild(style);
+
+    // Spawn Drops
+    for (let i = 0; i < 40; i++) {
+        const img = document.createElement('img');
+        img.src = images[Math.floor(Math.random() * images.length)];
+        const size = 40 + Math.random() * 60; // 40-100px
+        const dur = 2 + Math.random() * 3; // 2-5s
+
+        img.style.cssText = `
+            position: absolute;
+            top: -150px;
+            left: ${Math.random() * 100}vw;
+            width: ${size}px;
+            height: auto;
+            animation: fall ${dur}s linear forwards;
+            animation-delay: ${Math.random() * 4}s;
+            opacity: 0.9;
+        `;
+        container.appendChild(img);
+    }
+
+    // Cleanup
+    setTimeout(() => {
+        container.remove();
+    }, 10000);
+};
