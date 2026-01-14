@@ -53,7 +53,7 @@ function updatePremiumUI() {
         if (window.isPremium) {
             btnEl.innerText = isSpanish ? '✓ Premium Activo' : '✓ Premium Active';
         } else {
-            btnEl.innerText = isSpanish ? '💎 Mejorar ($5)' : '💎 Upgrade ($5)';
+            btnEl.innerText = isSpanish ? '💎 Mejorar ($9.99)' : '💎 Upgrade ($9.99)';
         }
         btnEl.style.background = window.isPremium ? '#34a853' : '#fbbc04';
     }
@@ -70,7 +70,7 @@ const translations = {
     spanish: { en: 'Español', es: 'Español' },
     status: { en: 'Status: <b>Free</b>', es: 'Estado: <b>Gratis</b>' },
     statusPremium: { en: 'Status: <b style="color:#d93025;">Premium 💎</b>', es: 'Estado: <b style="color:#d93025;">Premium 💎</b>' },
-    upgrade: { en: '💎 Upgrade ($5)', es: '💎 Mejorar ($5)' },
+    upgrade: { en: '💎 Upgrade ($9.99)', es: '💎 Mejorar ($9.99)' },
     premiumActive: { en: '✓ Premium Active', es: '✓ Premium Activo' },
 
     // Stats Panel
