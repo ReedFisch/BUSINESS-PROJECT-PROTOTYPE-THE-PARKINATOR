@@ -275,6 +275,33 @@ window.initMap = async function () {
     }
 
     map.addListener('idle', () => updateMap(AdvancedMarkerElement));
+
+    // AUTO-RESERVE LOGIC (For loomis_random.html)
+    if (window.autoReserve) {
+        // Filter for free spots
+        const freeSpots = parkingDatabase.filter(m => m.status === 'free');
+
+        if (freeSpots.length > 0) {
+            // Pick random spot
+            const randomSpot = freeSpots[Math.floor(Math.random() * freeSpots.length)];
+            const lat = parseFloat(randomSpot.latlng.latitude);
+            const lng = parseFloat(randomSpot.latlng.longitude);
+
+            console.log("Auto-Reserving Spot:", randomSpot.spaceid);
+
+            // Pan to spot
+            map.setCenter({ lat, lng });
+            map.setZoom(19);
+
+            // Open Reservation Popup directly
+            // Wait slightly for map to move
+            setTimeout(() => {
+                showTimePickerPopup(randomSpot.spaceid, randomSpot.priceVal);
+            }, 1000);
+        } else {
+            console.warn("No free spots available for auto-reservation.");
+        }
+    }
 };
 
 // SMART NAV LOGIC
