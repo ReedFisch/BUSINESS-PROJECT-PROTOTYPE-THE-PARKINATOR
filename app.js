@@ -1229,7 +1229,8 @@ window.handleReserve = async (spaceId, type) => {
     // Close Window
     if (activeInfoWindow) activeInfoWindow.close();
 
-    alert("Reservation Confirmed!\nSpace: " + spaceId);
+    const confirmMsg = window.isSpanish ? '¡Reserva Confirmada!\nEspacio: ' + spaceId : 'Reservation Confirmed!\nSpace: ' + spaceId;
+    alert(confirmMsg);
 };
 
 // Reserve Now - Free for everyone, immediate reservation
@@ -1266,7 +1267,10 @@ window.reserveNow = async (spaceId) => {
     // Close Window
     if (activeInfoWindow) activeInfoWindow.close();
 
-    alert("✅ Reservation Confirmed!\nSpace: " + spaceId + "\nStatus: Reserved Now\nRate: $" + meter.priceVal.toFixed(2) + "/hr");
+    const confirmMsg = window.isSpanish
+        ? '✅ ¡Reserva Confirmada!\nEspacio: ' + spaceId + '\nEstado: Reservado Ahora\nTarifa: $' + meter.priceVal.toFixed(2) + '/hr'
+        : '✅ Reservation Confirmed!\nSpace: ' + spaceId + '\nStatus: Reserved Now\nRate: $' + meter.priceVal.toFixed(2) + '/hr';
+    alert(confirmMsg);
 };
 
 // Hold Spot for 10 Minutes - Premium Feature
@@ -1313,7 +1317,10 @@ window.holdSpotFor10Min = async (spaceId, priceVal) => {
     if (activeInfoWindow) activeInfoWindow.close();
 
     const endTimeStr = holdEndTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    alert("⏱️ Spot Held!\n\nSpace: " + spaceId + "\nHeld until: " + endTimeStr + " (10 min)\nRate: $" + meter.priceVal.toFixed(2) + "/hr\n\n💡 Complete your reservation within 10 minutes or the hold will expire.");
+    const holdMsg = window.isSpanish
+        ? '⏱️ ¡Espacio Retenido!\n\nEspacio: ' + spaceId + '\nRetenido hasta: ' + endTimeStr + ' (10 min)\nTarifa: $' + meter.priceVal.toFixed(2) + '/hr\n\n💡 Completa tu reserva dentro de 10 minutos o la retención expirará.'
+        : '⏱️ Spot Held!\n\nSpace: ' + spaceId + '\nHeld until: ' + endTimeStr + ' (10 min)\nRate: $' + meter.priceVal.toFixed(2) + '/hr\n\n💡 Complete your reservation within 10 minutes or the hold will expire.';
+    alert(holdMsg);
 };
 
 function showPremiumRequiredPopup() {
