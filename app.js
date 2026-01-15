@@ -323,8 +323,18 @@ window.endReservation = (index) => {
     const duration = 15 + Math.floor(Math.random() * 45); // Simulate duration minutes
     const totalCost = res.price; // Flat rate for demo, could be per hour
 
-    // 1. Show Bill
-    const billMsg = `
+    // 1. Show Bill (with Spanish support)
+    const isEs = window.isSpanish;
+    const billMsg = isEs ? `
+    🧾 TU RECIBO
+    ----------------------------
+    ID de Espacio: ${res.spaceid}
+    Duración: ${duration} mins
+    ----------------------------
+    TOTAL PAGADO: $${totalCost.toFixed(2)}
+    ----------------------------
+    ¡Gracias por usar Parkinator!
+    ` : `
     🧾 YOUR RECEIPT
     ----------------------------
     Space ID: ${res.spaceid}
