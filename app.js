@@ -491,7 +491,8 @@ window.showTimePickerPopup = async (spaceId, priceVal) => {
     document.getElementById('time-confirm-btn').onclick = async () => {
         const inputVal = document.getElementById('time-input').value;
         if (!inputVal) {
-            alert("Please select a valid date and time.");
+            const errorMsg = window.isSpanish ? 'Por favor selecciona una fecha y hora válidas.' : 'Please select a valid date and time.';
+            alert(errorMsg);
             return;
         }
 
@@ -500,7 +501,10 @@ window.showTimePickerPopup = async (spaceId, priceVal) => {
         // Validation: Verify time is at least 2 hours in future (allow 1 min buffer for UI latency)
         // We use the same 'minTime' reference we calculated earlier
         if (selectedTime < minTime) {
-            alert(`⚠️ Invalid Time.\n\nReservations must be at least 2 hours in advance.\nEarliest time: ${minTimeDisplay}`);
+            const invalidMsg = window.isSpanish
+                ? `⚠️ Hora Inválida.\n\nLas reservas deben hacerse con al menos 2 horas de anticipación.\nHora más temprana: ${minTimeDisplay}`
+                : `⚠️ Invalid Time.\n\nReservations must be at least 2 hours in advance.\nEarliest time: ${minTimeDisplay}`;
+            alert(invalidMsg);
             return;
         }
 
@@ -544,7 +548,10 @@ window.showTimePickerPopup = async (spaceId, priceVal) => {
         const timeStr = reservationTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         const dateStr = reservationTime.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
 
-        alert(`✅ Reservation Confirmed!\n\nSpace: ${spaceId}\nTime: ${timeStr} on ${dateStr}\nRate: $${meter.priceVal.toFixed(2)}/hr`);
+        const confirmMsg = window.isSpanish
+            ? `✅ ¡Reserva Confirmada!\n\nEspacio: ${spaceId}\nHora: ${timeStr} el ${dateStr}\nTarifa: $${meter.priceVal.toFixed(2)}/hr`
+            : `✅ Reservation Confirmed!\n\nSpace: ${spaceId}\nTime: ${timeStr} on ${dateStr}\nRate: $${meter.priceVal.toFixed(2)}/hr`;
+        alert(confirmMsg);
     };
 
     document.getElementById('time-cancel-btn').onclick = () => {
@@ -647,7 +654,10 @@ window.toggleTheme = () => {
 
 window.toggleUnits = () => {
     useMetric = !useMetric;
-    alert(`Units switched to ${useMetric ? "Metric" : "Imperial"}.`);
+    const unitsMsg = window.isSpanish
+        ? `Unidades cambiadas a ${useMetric ? 'Métricas' : 'Imperiales'}.`
+        : `Units switched to ${useMetric ? 'Metric' : 'Imperial'}.`;
+    alert(unitsMsg);
 };
 
 // SMART NAV & ROUTING
@@ -672,7 +682,7 @@ window.findSmartSpot = async (targetLoc, mode = 'cheapest') => {
             const dist = spherical.computeDistanceBetween(targetLoc, new google.maps.LatLng(lat, lng));
             if (dist < minDist) { minDist = dist; bestSpot = meter; }
         });
-        msg = "Found closest parking spot!";
+        msg = window.isSpanish ? '¡Espacio de estacionamiento más cercano encontrado!' : 'Found closest parking spot!';
     }
     // MODE: CHEAPEST (< 0.5mi / 0.8km)
     else {
@@ -691,7 +701,9 @@ window.findSmartSpot = async (targetLoc, mode = 'cheapest') => {
                 return pDiff !== 0 ? pDiff : a.dist - b.dist;
             });
             bestSpot = candidates[0].meter;
-            msg = useMetric ? "Found cheapest spot within 800m!" : "Found cheapest spot within 0.5 miles!";
+            msg = window.isSpanish
+                ? (useMetric ? '¡Espacio más barato encontrado dentro de 800m!' : '¡Espacio más barato encontrado a 0.5 millas!')
+                : (useMetric ? 'Found cheapest spot within 800m!' : 'Found cheapest spot within 0.5 miles!');
         } else {
             return window.findSmartSpot(targetLoc, 'closest'); // Fallback
         }
@@ -699,7 +711,9 @@ window.findSmartSpot = async (targetLoc, mode = 'cheapest') => {
 
     if (bestSpot) {
         const dest = { lat: parseFloat(bestSpot.latlng.latitude), lng: parseFloat(bestSpot.latlng.longitude) };
-        alert(`${msg}\nPrice: $${bestSpot.priceVal}/hr\nDrawing route...`);
+        const priceLabel = window.isSpanish ? 'Precio' : 'Price';
+        const routeLabel = window.isSpanish ? 'Trazando ruta...' : 'Drawing route...';
+        alert(`${msg}\n${priceLabel}: $${bestSpot.priceVal}/hr\n${routeLabel}`);
         map.panTo(dest);
         map.setZoom(18);
 
@@ -715,7 +729,8 @@ window.findSmartSpot = async (targetLoc, mode = 'cheapest') => {
             });
         }
     } else {
-        alert("No parking available at all.");
+        const noParking = window.isSpanish ? 'No hay estacionamiento disponible.' : 'No parking available at all.';
+        alert(noParking);
     }
 };
 
