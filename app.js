@@ -453,7 +453,7 @@ window.showTimePickerPopup = async (spaceId, priceVal) => {
                 background: ${usingFallback ? '#fff3cd' : '#e8f5e9'}; 
                 border: 1px solid ${usingFallback ? '#ffc107' : '#4caf50'};
                 padding: 8px; border-radius: 8px; margin-bottom: 12px; font-size: 12px;
-                color: ${usingFallback ? '#856404' : '#2e7d32'};
+                color: ${usingFallback ? '#664d03' : '#2e7d32'};
             ">
                 ${usingFallback ? timeDevice : timeVerified}<br>
                 <b>${currentTimeLabel}:</b> ${currentTimeDisplay}
@@ -1364,7 +1364,7 @@ function showPremiumRequiredPopup() {
             </p>
             <div style="
                 background: #fff3cd; border: 1px solid #ffc107; padding: 10px;
-                border-radius: 8px; margin-bottom: 16px; font-size: 13px; color: #856404;
+                border-radius: 8px; margin-bottom: 16px; font-size: 13px; color: #664d03;
             ">
                 ${priceNote}
             </div>
