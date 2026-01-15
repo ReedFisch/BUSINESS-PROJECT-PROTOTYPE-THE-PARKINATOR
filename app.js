@@ -954,36 +954,47 @@ function showCancelPremiumPopup() {
     const keepBg = darkModeActive ? '#444' : '#f5f5f5';
     const keepBorder = darkModeActive ? '#555' : '#ddd';
 
+    // Translated strings
+    const isEs = window.isSpanish;
+    const title = isEs ? 'Premium Activo' : 'Premium Active';
+    const desc = isEs ? '¡Estás disfrutando de los beneficios Premium!<br>¿Quieres cancelar tu suscripción?' : 'You\'re enjoying Premium benefits!<br>Do you want to cancel your subscription?';
+    const feature1 = isEs ? '✅ Reservas Futuras' : '✅ Future Reservations';
+    const feature2 = isEs ? '✅ Reserva "Disponible Pronto"' : '✅ "Available Soon" Booking';
+    const feature3 = isEs ? '✅ Función de Retención de 10 Minutos' : '✅ 10-Minute Hold Feature';
+    const keepBtn = isEs ? 'Mantener Premium' : 'Keep Premium';
+    const cancelBtn = isEs ? 'Cancelar Suscripción' : 'Cancel Sub';
+    const demoNote = isEs ? '(DEMO: Haz clic en Cancelar para desactivar)' : '(DEMO: Click Cancel to deactivate)';
+
     overlay.innerHTML = `
         <div style="
             background: ${popupBg}; border-radius: 16px; padding: 24px; max-width: 320px;
             box-shadow: 0 8px 32px rgba(0,0,0,0.3); text-align: center;
         ">
             <div style="font-size: 48px; margin-bottom: 12px;">💎</div>
-            <h2 style="margin: 0 0 8px; color: ${popupText}; font-size: 20px;">Premium Active</h2>
+            <h2 style="margin: 0 0 8px; color: ${popupText}; font-size: 20px;">${title}</h2>
             <p style="color: ${popupSubtext}; font-size: 14px; margin: 0 0 16px; line-height: 1.5;">
-                You're enjoying Premium benefits!<br>Do you want to cancel your subscription?
+                ${desc}
             </p>
             <div style="
                 background: linear-gradient(135deg, rgba(102,126,234,0.15) 0%, rgba(118,75,162,0.15) 100%);
                 padding: 12px; border-radius: 8px; margin-bottom: 16px;
                 font-size: 13px; color: ${popupSubtext};
             ">
-                ✅ Future Reservations<br>
-                ✅ "Available Soon" Booking<br>
-                ✅ 10-Minute Hold Feature
+                ${feature1}<br>
+                ${feature2}<br>
+                ${feature3}
             </div>
             <div style="display: flex; gap: 10px;">
                 <button id="cancel-premium-keep" style="
                     flex: 1; padding: 12px; border: 1px solid ${keepBorder}; background: ${keepBg};
                     border-radius: 8px; font-size: 14px; cursor: pointer; color: ${popupText};
-                ">Keep Premium</button>
+                ">${keepBtn}</button>
                 <button id="cancel-premium-confirm" style="
                     flex: 1; padding: 12px; border: none; background: #d93025;
                     color: white; border-radius: 8px; font-size: 14px; font-weight: bold; cursor: pointer;
-                ">Cancel Sub</button>
+                ">${cancelBtn}</button>
             </div>
-            <p style="color: ${popupSubtext}; font-size: 11px; margin: 12px 0 0;">(DEMO: Click Cancel to deactivate)</p>
+            <p style="color: ${popupSubtext}; font-size: 11px; margin: 12px 0 0;">${demoNote}</p>
         </div>
     `;
 
@@ -994,7 +1005,10 @@ function showCancelPremiumPopup() {
         localStorage.setItem('loomis_premium', 'false');
         updatePremiumUI();
         overlay.remove();
-        alert("Subscription cancelled. You can re-subscribe anytime!");
+        const cancelMsg = window.isSpanish
+            ? 'Suscripción cancelada. ¡Puedes volver a suscribirte en cualquier momento!'
+            : 'Subscription cancelled. You can re-subscribe anytime!';
+        alert(cancelMsg);
     };
 
     document.getElementById('cancel-premium-keep').onclick = () => {
